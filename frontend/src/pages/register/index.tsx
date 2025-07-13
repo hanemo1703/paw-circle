@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import { api } from '../../lib/api';
 import styles from './index.module.scss';
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,6 +17,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await api.post('/auth/register', { name, email, password });
+      router.push('/login?registered=1');
     } catch (err: any) {
       setError(err.message);
     } finally {
