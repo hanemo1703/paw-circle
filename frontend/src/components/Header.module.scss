@@ -1,0 +1,38 @@
+@import '../styles/variables';
+
+.header {
+  border-bottom: 1px solid $color-border;
+  background: $color-surface;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 800;
+  color: $color-navy;
+}
+
+.nav {
+  display: flex;
+  gap: 24px;
+  font-weight: 600;
+  color: $color-navy;
+
+  @media (max-width: $breakpoint-tablet) {
+    display: none;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
