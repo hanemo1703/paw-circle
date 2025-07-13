@@ -1,0 +1,61 @@
+@import '../../styles/variables';
+
+.wrapper {
+  padding: 40px 0 80px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 800;
+  color: $color-navy;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+
+  @media (max-width: $breakpoint-tablet) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  padding: 20px;
+}
+
+.progressTrack {
+  height: 10px;
+  border-radius: 999px;
+  background: $color-border;
+  overflow: hidden;
+  margin: 12px 0 8px;
+}
+
+.progressFill {
+  height: 100%;
+  background: $color-primary;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: $color-text-muted;
+}
+
+.empty {
+  color: $color-text-muted;
+  padding: 40px 0;
+  text-align: center;
+}
