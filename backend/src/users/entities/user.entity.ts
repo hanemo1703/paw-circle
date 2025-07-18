@@ -26,8 +26,8 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column()
-  password: string;
+  @Column({ nullable: true })
+  password?: string;
 
   @Column()
   name: string;
@@ -37,6 +37,15 @@ export class User {
 
   @Column({ nullable: true })
   avatarUrl?: string;
+
+  @Column({ unique: true, nullable: true })
+  googleId?: string;
+
+  @Column({ unique: true, nullable: true })
+  facebookId?: string;
+
+  @Column({ type: 'varchar', default: 'local' })
+  provider: 'local' | 'google' | 'facebook';
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole;
