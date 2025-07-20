@@ -38,6 +38,13 @@
   overflow: hidden;
 }
 
+.cardImage {
+  height: 160px;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .imagePlaceholder {
   height: 160px;
   background: linear-gradient(135deg, #ffe3d1, #ffd6e0);
@@ -49,6 +56,17 @@
 
 .cardBody {
   padding: 16px;
+}
+
+.petCountChip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba($color-secondary, 0.12);
+  color: $color-secondary;
 }
 
 .cardTitle {

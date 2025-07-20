@@ -1,0 +1,78 @@
+@import '../styles/variables';
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.actionButton {
+  padding: 8px 14px;
+  border: 1px solid $color-primary;
+  border-radius: $radius-sm;
+  background: none;
+  color: $color-primary;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba($color-primary, 0.08);
+  }
+}
+
+.clearButton {
+  border: none;
+  background: none;
+  color: $color-text-muted;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover {
+    color: $color-danger;
+  }
+}
+
+.error {
+  color: $color-danger;
+  font-size: 13px;
+  margin: 0;
+}
+
+.mapContainer {
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  overflow: hidden;
+}
+
+.map {
+  height: 260px;
+  width: 100%;
+}
+
+.pinIcon {
+  font-size: 26px;
+  line-height: 1;
+  text-align: center;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+}
+
+.coords,
+.hint {
+  font-size: 13px;
+  color: $color-text-muted;
+  margin: 0;
+}
