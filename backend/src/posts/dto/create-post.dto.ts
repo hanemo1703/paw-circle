@@ -1,5 +1,17 @@
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
-import { PostType } from '../entities/post.entity';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { PetGender, PostType } from '../entities/post.entity';
+import { CreateAdoptionPetDto } from './create-adoption-pet.dto';
 
 export class CreatePostDto {
   @IsEnum(PostType)
@@ -12,6 +24,9 @@ export class CreatePostDto {
   description: string;
 
   @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @IsString({ each: true })
   images?: string[];
 
   @IsOptional()
@@ -33,4 +48,45 @@ export class CreatePostDto {
   @IsOptional()
   @IsString()
   petId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  species?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  breed?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  color?: string;
+
+  @IsOptional()
+  @IsNumber()
+  size?: number;
+
+  @IsOptional()
+  @IsEnum(PetGender)
+  gender?: PetGender;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  collarDescription?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  microchipId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => CreateAdoptionPetDto)
+  pets?: CreateAdoptionPetDto[];
 }

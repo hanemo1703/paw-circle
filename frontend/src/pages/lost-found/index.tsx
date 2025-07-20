@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react';
 import type { GetServerSideProps } from 'next';
+import { useRouter } from 'next/router';
 import { api } from '../../lib/api';
 import PostList, { PostItem } from '../../components/PostList';
+import Toast, { ToastType } from '../../components/Toast';
 
 interface Props {
   posts: PostItem[];
@@ -8,12 +11,26 @@ interface Props {
 
 // Page combining both "lost" (LOST) and "found" (FOUND) posts
 export default function LostFoundPage({ posts }: Props) {
+  const router = useRouter();
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+
+  useEffect(() => {
+    if (router.isReady && router.query.created === '1') {
+      setToast({ message: 'Đăng tin thành công!', type: 'success' });
+      router.replace('/lost-found', undefined, { shallow: true });
+    }
+  }, [router.isReady, router.query.created]);
+
   return (
-    <PostList
-      title="Tìm chó mèo lạc"
-      posts={posts}
-      emptyText="Chưa có tin báo mất/tìm thấy nào. Hãy là người đầu tiên đăng tin!"
-    />
+    <>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <PostList
+        title="Tìm chó mèo lạc"
+        posts={posts}
+        emptyText="Chưa có tin báo mất/tìm thấy nào. Hãy là người đầu tiên đăng tin!"
+        newPostType="LOST"
+      />
+    </>
   );
 }
 
