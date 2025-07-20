@@ -16,9 +16,17 @@
 }
 
 .logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 20px;
   font-weight: 800;
   color: $color-navy;
+}
+
+.logoImage {
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .nav {

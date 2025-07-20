@@ -58,7 +58,9 @@ export default function PostList({
               {post.images && post.images.length > 0 ? (
                 <img className={styles.cardImage} src={toAssetUrl(post.images[0])} alt={post.title} />
               ) : (
-                <div className={styles.imagePlaceholder}>🐾</div>
+                <div className={styles.imagePlaceholder}>
+                  <img className={styles.placeholderLogo} src="/logo.jpg" alt={post.title} />
+                </div>
               )}
               <div className={styles.cardBody}>
                 <span className={BADGE_CLASS[post.type]}>{BADGE_LABEL[post.type]}</span>

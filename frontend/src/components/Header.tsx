@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/auth';
@@ -23,7 +24,8 @@ export default function Header() {
     <header className={styles.header}>
       <div className={`container ${styles.inner}`}>
         <Link href="/" className={styles.logo}>
-          🐾 PawCircle
+          <Image src="/logo.jpg" alt="PawCircle" width={36} height={36} className={styles.logoImage} />
+          PawCircle
         </Link>
 
         <nav className={styles.nav}>
