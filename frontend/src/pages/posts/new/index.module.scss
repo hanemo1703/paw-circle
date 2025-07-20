@@ -1,0 +1,289 @@
+@import '../../../styles/variables';
+
+// Shared caret icon for every dropdown (native selects + the custom type-picker input)
+$caret-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%237A6F68' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+.wrapper {
+  max-width: 680px;
+  margin: 60px auto 100px;
+  padding: 32px;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 24px;
+  text-align: center;
+  color: $color-navy;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+
+  label {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .requiredMark {
+    color: $color-danger;
+    margin-left: 2px;
+  }
+
+  input,
+  textarea,
+  select {
+    padding: 10px 12px;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+    font-size: 15px;
+    font-family: inherit;
+
+    &:focus {
+      outline: 2px solid $color-primary;
+    }
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: $color-surface;
+    background-image: $caret-icon;
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px 8px;
+    padding-right: 32px;
+  }
+}
+
+.regionRow {
+  display: flex;
+  gap: 8px;
+
+  select {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.typeField {
+  position: relative;
+}
+
+.typeInputWrapper {
+  position: relative;
+
+  .typeInput {
+    width: 100%;
+    padding-right: 32px;
+  }
+}
+
+.typeCaret {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 8px;
+  pointer-events: none;
+  background-image: $caret-icon;
+  background-repeat: no-repeat;
+  background-size: 12px 8px;
+}
+
+.typeDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  padding: 4px;
+  list-style: none;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+}
+
+.typeDropdownOption {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: $radius-sm;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba($color-primary, 0.08);
+    color: $color-primary;
+  }
+}
+
+.imagePreviewGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.imagePreviewItem {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: $radius-sm;
+  overflow: hidden;
+  border: 1px solid $color-border;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  button {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.8);
+    }
+  }
+}
+
+.petListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+
+  label {
+    margin: 0;
+  }
+}
+
+.addPetBtn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: none;
+  border-radius: $radius-sm;
+  background: $color-primary;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-primary-dark;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.petTableWrapper {
+  overflow-x: auto;
+}
+
+.petTable {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 6px;
+    border-bottom: 1px solid $color-border;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    font-size: 12px;
+    font-weight: 600;
+    color: $color-text-muted;
+    white-space: nowrap;
+  }
+
+  input,
+  select {
+    width: 100%;
+    min-width: 90px;
+    padding: 6px 8px;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+    font-size: 13px;
+    font-family: inherit;
+
+    &:focus {
+      outline: 2px solid $color-primary;
+    }
+  }
+
+  input + input {
+    margin-top: 4px;
+  }
+}
+
+.removePetBtn {
+  border: none;
+  background: none;
+  color: $color-danger;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    opacity: 0.7;
+  }
+}
+
+.mapToggle {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: $color-primary;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+}
