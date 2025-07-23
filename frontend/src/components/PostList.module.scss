@@ -32,10 +32,17 @@
 }
 
 .card {
+  display: block;
   background: $color-surface;
   border: 1px solid $color-border;
   border-radius: $radius-lg;
   overflow: hidden;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
 }
 
 .cardImage {

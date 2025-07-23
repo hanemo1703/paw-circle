@@ -89,9 +89,6 @@ export class Post {
   @Column({ nullable: true })
   collarDescription?: string;
 
-  @Column({ nullable: true })
-  microchipId?: string;
-
   @Column({ type: 'jsonb', nullable: true })
   pets?: AdoptionPetInfo[];
 
