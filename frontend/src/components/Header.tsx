@@ -5,10 +5,11 @@ import { useAuth } from '../lib/auth';
 import styles from './Header.module.scss';
 
 const NAV_ITEMS = [
-  { href: '/lost-found', label: 'Thú lạc' },
-  { href: '/adoption', label: 'Nhận nuôi' },
-  { href: '/marketplace', label: 'Đồ dùng' },
-  { href: '/donations', label: 'Gây quỹ' },
+  { href: '/lost-found', label: 'Boss lạc đường' },
+  { href: '/adoption', label: 'Tìm sen cho boss' },
+  { href: '/marketplace', label: 'Tặng đồ' },
+  { href: '/trade', label: 'Chợ boss' },
+  { href: '/donations', label: 'Cứu trợ' },
 ];
 
 export default function Header() {
@@ -30,7 +31,11 @@ export default function Header() {
 
         <nav className={styles.nav}>
           {NAV_ITEMS.map((item) => (
-            <Link key={item.href} href={item.href}>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`${styles.navLink} ${router.pathname === item.href ? styles.navLinkActive : ''}`}
+            >
               {item.label}
             </Link>
           ))}

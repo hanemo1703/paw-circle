@@ -79,7 +79,7 @@ const LIST_PATH: Record<PostType, string> = {
   FOUND: '/lost-found',
   ADOPTION: '/adoption',
   MARKETPLACE: '/marketplace',
-  TRADE: '/marketplace',
+  TRADE: '/trade',
 };
 
 const GENDER_LABEL: Record<PetGender, string> = {
