@@ -15,11 +15,15 @@ export default function LostFoundPage({ posts }: Props) {
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
   useEffect(() => {
-    if (router.isReady && router.query.created === '1') {
+    if (!router.isReady) return;
+    if (router.query.created === '1') {
       setToast({ message: 'Đăng tin thành công!', type: 'success' });
       router.replace('/lost-found', undefined, { shallow: true });
+    } else if (router.query.deleted === '1') {
+      setToast({ message: 'Đã xóa bài đăng.', type: 'success' });
+      router.replace('/lost-found', undefined, { shallow: true });
     }
-  }, [router.isReady, router.query.created]);
+  }, [router.isReady, router.query.created, router.query.deleted]);
 
   return (
     <>

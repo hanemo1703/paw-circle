@@ -1,13 +1,15 @@
 import { useRef, useState } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
+import { MapPin } from 'lucide-react';
 import styles from './LocationPicker.module.scss';
 
 const DEFAULT_CENTER: [number, number] = [21.0285, 105.8542]; // Hà Nội
 
 const pinIcon = L.divIcon({
   className: styles.pinIcon,
-  html: '📍',
+  html: renderToStaticMarkup(<MapPin size={28} fill="#ff5b2e" color="#fff" strokeWidth={1.5} />),
   iconSize: [28, 28],
   iconAnchor: [14, 28],
 });
@@ -61,7 +63,8 @@ export default function LocationPicker({ latitude, longitude, onChange, onClear 
     <div className={styles.wrapper}>
       <div className={styles.actions}>
         <button type="button" className={styles.actionButton} onClick={useCurrentLocation} disabled={locating}>
-          📍 {locating ? 'Đang lấy vị trí...' : 'Dùng vị trí hiện tại'}
+          <MapPin size={14} style={{ verticalAlign: -2 }} />{' '}
+          {locating ? 'Đang lấy vị trí...' : 'Dùng vị trí hiện tại'}
         </button>
         {hasPin && (
           <button type="button" className={styles.clearButton} onClick={onClear}>

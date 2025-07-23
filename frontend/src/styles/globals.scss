@@ -66,6 +66,25 @@ a {
   color: $color-text;
 }
 
+.btn-danger {
+  background: transparent;
+  border: 1.5px solid $color-danger;
+  color: $color-danger;
+
+  &:hover {
+    background: rgba($color-danger, 0.08);
+  }
+}
+
+.btn-danger-solid {
+  background: $color-danger;
+  color: white;
+
+  &:hover {
+    background: darken($color-danger, 8%);
+  }
+}
+
 .badge {
   display: inline-block;
   padding: 4px 10px;
@@ -93,4 +112,14 @@ a {
 .badge-trade {
   background: rgba($color-primary, 0.12);
   color: $color-primary-dark;
+}
+
+.badge-status-open {
+  background: rgba($color-secondary, 0.12);
+  color: $color-secondary;
+}
+
+.badge-status-done {
+  background: rgba($color-text-muted, 0.12);
+  color: $color-text-muted;
 }

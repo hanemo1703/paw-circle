@@ -16,12 +16,21 @@ async function request(path: string, options: RequestInit = {}) {
     throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.');
   }
 
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}));
-    throw new Error(errorBody.message || `Yêu cầu thất bại: ${res.status}`);
+  const text = await res.text();
+  let data: any = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
   }
 
-  return res.json();
+  if (!res.ok) {
+    throw new Error(data?.message || `Yêu cầu thất bại: ${res.status}`);
+  }
+
+  return data;
 }
 
 export const api = {
@@ -36,6 +45,17 @@ export const api = {
     request(path, {
       method: 'POST',
       body: formData,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
+  patch: (path: string, body: unknown, token?: string) =>
+    request(path, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
+  delete: (path: string, token?: string) =>
+    request(path, {
+      method: 'DELETE',
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     }),
 };

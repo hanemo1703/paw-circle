@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   FileTypeValidator,
   Get,
   MaxFileSizeValidator,
   Param,
   ParseFilePipe,
+  Patch,
   Post as HttpPost,
   Query,
   Req,
@@ -16,6 +18,7 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
 import { QueryPostDto } from './dto/query-post.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { MAX_IMAGE_SIZE_BYTES, MAX_POST_IMAGES, postImagesStorage } from './images-upload.config';
@@ -60,5 +63,17 @@ export class PostsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.postsService.findOne(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  update(@Req() req: any, @Param('id') id: string, @Body() dto: UpdatePostDto) {
+    return this.postsService.update(id, req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  remove(@Req() req: any, @Param('id') id: string) {
+    return this.postsService.remove(id, req.user.userId);
   }
 }
