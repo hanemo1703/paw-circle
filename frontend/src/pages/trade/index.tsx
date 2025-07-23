@@ -9,7 +9,7 @@ interface Props {
   posts: PostItem[];
 }
 
-export default function MarketplacePage({ posts }: Props) {
+export default function TradePage({ posts }: Props) {
   const router = useRouter();
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
@@ -17,10 +17,10 @@ export default function MarketplacePage({ posts }: Props) {
     if (!router.isReady) return;
     if (router.query.created === '1') {
       setToast({ message: 'Đăng tin thành công!', type: 'success' });
-      router.replace('/marketplace', undefined, { shallow: true });
+      router.replace('/trade', undefined, { shallow: true });
     } else if (router.query.deleted === '1') {
       setToast({ message: 'Đã xóa bài đăng.', type: 'success' });
-      router.replace('/marketplace', undefined, { shallow: true });
+      router.replace('/trade', undefined, { shallow: true });
     }
   }, [router.isReady, router.query.created, router.query.deleted]);
 
@@ -28,10 +28,10 @@ export default function MarketplacePage({ posts }: Props) {
     <>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <PostList
-        title="Cho / trao đổi đồ dùng"
+        title="Mua bán thú cưng"
         posts={posts}
-        emptyText="Chưa có đồ dùng nào được đăng. Hãy chia sẻ đồ cũ cho bé khác nhé!"
-        newPostType="MARKETPLACE"
+        emptyText="Chưa có tin mua bán thú cưng nào. Hãy đăng tin đầu tiên!"
+        newPostType="TRADE"
       />
     </>
   );
@@ -40,7 +40,7 @@ export default function MarketplacePage({ posts }: Props) {
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   let posts: PostItem[] = [];
   try {
-    posts = await api.get('/posts?type=MARKETPLACE');
+    posts = await api.get('/posts?type=TRADE');
   } catch {
     // Backend not running — still render the page with an empty list
   }

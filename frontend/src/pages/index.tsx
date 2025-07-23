@@ -1,45 +1,9 @@
-import { useEffect, useState } from 'react';
-import type { GetServerSideProps } from 'next';
-import { useRouter } from 'next/router';
-import { api } from '../lib/api';
-import PostList, { PostItem } from '../components/PostList';
-import Toast, { ToastType } from '../components/Toast';
+import styles from './planning.module.scss';
 
-interface Props {
-  posts: PostItem[];
-}
-
-export default function HomePage({ posts }: Props) {
-  const router = useRouter();
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
-
-  useEffect(() => {
-    if (router.isReady && router.query.created === '1') {
-      setToast({ message: 'Đăng tin thành công!', type: 'success' });
-      router.replace('/', undefined, { shallow: true });
-    }
-  }, [router.isReady, router.query.created]);
-
+export default function PlanningPage() {
   return (
-    <>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      <PostList
-        title="Tìm người nhận nuôi"
-        posts={posts}
-        emptyText="Chưa có bé nào cần tìm nhà mới. Hãy đăng tin đầu tiên!"
-        newPostType="ADOPTION"
-      />
-    </>
+    <div className={`container ${styles.wrapper}`}>
+      <h1 className={styles.title}>Planning</h1>
+    </div>
   );
 }
-
-export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  let posts: PostItem[] = [];
-  try {
-    posts = await api.get('/posts?type=ADOPTION');
-  } catch {
-    // Backend not running — still render the page with an empty list
-  }
-
-  return { props: { posts } };
-};

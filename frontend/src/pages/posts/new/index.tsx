@@ -36,7 +36,7 @@ const REDIRECT_PATH: Record<CreatableType, string> = {
   LOST: '/lost-found',
   ADOPTION: '/adoption',
   MARKETPLACE: '/marketplace',
-  TRADE: '/marketplace',
+  TRADE: '/trade',
 };
 
 function parseType(value: unknown): CreatableType {
