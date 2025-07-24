@@ -16,6 +16,7 @@ const LocationPicker = dynamic(() => import('../../../components/LocationPicker'
 
 type PostType = 'LOST' | 'FOUND' | 'ADOPTION' | 'MARKETPLACE' | 'TRADE';
 type PetGender = 'MALE' | 'FEMALE' | 'UNKNOWN';
+type AdoptionPetStatus = 'PENDING' | 'ADOPTED';
 
 interface AdoptionPetInfo {
   species: string;
@@ -24,6 +25,7 @@ interface AdoptionPetInfo {
   age?: number;
   gender?: PetGender;
   size?: number;
+  status?: AdoptionPetStatus;
 }
 
 interface Author {
@@ -97,6 +99,7 @@ interface PetRowValues {
   age: string;
   gender: GenderOption;
   size: string;
+  status: AdoptionPetStatus;
 }
 
 function makeDefaultPetRow(): PetRowValues {
@@ -108,9 +111,12 @@ function makeDefaultPetRow(): PetRowValues {
     age: '',
     gender: 'UNKNOWN',
     size: '',
+    status: 'PENDING',
   };
 }
 
+// Adoption status is only ever changed from the post detail page — carried through
+// here unchanged so saving unrelated edits doesn't reset a pet back to "pending".
 function petToRow(pet: AdoptionPetInfo): PetRowValues {
   const { species, speciesOther } = toSpeciesOption(pet.species);
   return {
@@ -121,6 +127,7 @@ function petToRow(pet: AdoptionPetInfo): PetRowValues {
     age: pet.age != null ? String(pet.age) : '',
     gender: pet.gender ?? 'UNKNOWN',
     size: pet.size != null ? String(pet.size) : '',
+    status: pet.status ?? 'PENDING',
   };
 }
 
@@ -333,6 +340,7 @@ export default function EditPostPage({ post }: Props) {
                   ...(p.age ? { age: Number(p.age) } : {}),
                   gender: p.gender,
                   ...(p.size ? { size: Number(p.size) } : {}),
+                  status: p.status,
                 })),
               }
             : {}),

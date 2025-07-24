@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Post, PostType } from './entities/post.entity';
+import { AdoptionPetStatus, Post, PostStatus, PostType } from './entities/post.entity';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { QueryPostDto } from './dto/query-post.dto';
@@ -19,6 +19,11 @@ export class PostsService {
       ...dto,
       authorId,
       images: dto.images ?? [],
+      // Every pet starts out up for adoption regardless of what the client sends.
+      ...(dto.type === PostType.ADOPTION &&
+        dto.pets && {
+          pets: dto.pets.map((pet) => ({ ...pet, status: AdoptionPetStatus.PENDING })),
+        }),
       ...(firstPet && {
         species: dto.species ?? firstPet.species,
         breed: dto.breed ?? firstPet.breed,
@@ -62,6 +67,12 @@ export class PostsService {
     const firstPet = post.type === PostType.ADOPTION ? dto.pets?.[0] : undefined;
     Object.assign(post, {
       ...dto,
+      // Newly added pets (no status yet, e.g. appended via the edit form) start PENDING;
+      // existing pets keep whatever status the client echoed back.
+      ...(post.type === PostType.ADOPTION &&
+        dto.pets && {
+          pets: dto.pets.map((pet) => ({ status: AdoptionPetStatus.PENDING, ...pet })),
+        }),
       ...(firstPet && {
         species: dto.species ?? firstPet.species,
         breed: dto.breed ?? firstPet.breed,
@@ -69,6 +80,14 @@ export class PostsService {
         size: dto.size ?? firstPet.size,
       }),
     });
+
+    // Whenever the pet list itself is part of this update, keep the post's own status in
+    // sync: resolved once every pet has found a home, reopened if any pet still hasn't.
+    if (post.type === PostType.ADOPTION && dto.pets && post.pets && post.pets.length > 0) {
+      const allAdopted = post.pets.every((pet) => pet.status === AdoptionPetStatus.ADOPTED);
+      post.status = allAdopted ? PostStatus.RESOLVED : PostStatus.OPEN;
+    }
+
     return this.postsRepo.save(post);
   }
 

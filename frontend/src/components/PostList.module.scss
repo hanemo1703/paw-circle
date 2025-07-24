@@ -17,6 +17,28 @@
   color: $color-navy;
 }
 
+.filterBar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.clearFilters {
+  border: none;
+  background: none;
+  color: $color-primary;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 10px 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -35,7 +57,7 @@
   display: block;
   background: $color-surface;
   border: 1px solid $color-border;
-  border-radius: $radius-lg;
+  border-radius: $radius-card;
   overflow: hidden;
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 

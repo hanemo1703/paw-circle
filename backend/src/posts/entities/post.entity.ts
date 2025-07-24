@@ -29,6 +29,11 @@ export enum PetGender {
   UNKNOWN = 'UNKNOWN',
 }
 
+export enum AdoptionPetStatus {
+  PENDING = 'PENDING',
+  ADOPTED = 'ADOPTED',
+}
+
 // One row per animal for ADOPTION posts covering more than one pet (e.g. a litter)
 export interface AdoptionPetInfo {
   species: string;
@@ -37,6 +42,7 @@ export interface AdoptionPetInfo {
   age?: number;
   gender?: PetGender;
   size?: number;
+  status?: AdoptionPetStatus;
 }
 
 @Entity('posts')

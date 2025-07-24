@@ -1,5 +1,5 @@
 import { IsEnum, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
-import { PetGender, AdoptionPetInfo } from '../entities/post.entity';
+import { AdoptionPetStatus, PetGender, AdoptionPetInfo } from '../entities/post.entity';
 
 export class CreateAdoptionPetDto implements AdoptionPetInfo {
   @IsString()
@@ -27,4 +27,10 @@ export class CreateAdoptionPetDto implements AdoptionPetInfo {
   @IsOptional()
   @IsNumber()
   size?: number;
+
+  // Not settable at creation (always starts PENDING) — accepted here so update
+  // payloads can round-trip each pet's current adoption status unchanged.
+  @IsOptional()
+  @IsEnum(AdoptionPetStatus)
+  status?: AdoptionPetStatus;
 }
