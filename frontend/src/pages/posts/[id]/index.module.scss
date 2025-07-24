@@ -31,7 +31,7 @@
 
 .layout {
   display: grid;
-  grid-template-columns: 1.3fr 1fr;
+  grid-template-columns: 1fr 1.3fr;
   gap: 32px;
 
   @media (max-width: $breakpoint-tablet) {
@@ -46,7 +46,7 @@
 }
 
 .mainImageWrapper {
-  border-radius: $radius-lg;
+  border-radius: $radius-card;
   overflow: hidden;
   background: $color-surface;
   border: 1px solid $color-border;
@@ -126,10 +126,6 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px 20px;
-  padding: 16px;
-  background: $color-surface;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
 }
 
 .infoItem {
@@ -151,6 +147,12 @@
 
 .sectionTitle {
   margin: 0;
+  font-weight: 700;
+  color: $color-navy;
+}
+
+.infoTitle {
+  margin: 14px 0 0;
   font-weight: 700;
   color: $color-navy;
 }
@@ -182,10 +184,6 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
-  background: $color-surface;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
 }
 
 .authorAvatar {

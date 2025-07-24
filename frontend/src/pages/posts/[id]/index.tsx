@@ -13,6 +13,7 @@ import styles from './index.module.scss';
 type PostType = 'LOST' | 'FOUND' | 'ADOPTION' | 'MARKETPLACE' | 'TRADE';
 type PostStatus = 'OPEN' | 'RESOLVED' | 'CLOSED';
 type PetGender = 'MALE' | 'FEMALE' | 'UNKNOWN';
+type AdoptionPetStatus = 'PENDING' | 'ADOPTED';
 
 interface AdoptionPetInfo {
   species: string;
@@ -21,6 +22,7 @@ interface AdoptionPetInfo {
   age?: number;
   gender?: PetGender;
   size?: number;
+  status?: AdoptionPetStatus;
 }
 
 interface Author {
@@ -88,6 +90,16 @@ const GENDER_LABEL: Record<PetGender, string> = {
   UNKNOWN: 'Chưa rõ',
 };
 
+const PET_STATUS_LABEL: Record<AdoptionPetStatus, string> = {
+  PENDING: 'Chờ nhận nuôi',
+  ADOPTED: 'Đã có chủ',
+};
+
+const PET_STATUS_OPTIONS: { value: AdoptionPetStatus; label: string }[] = [
+  { value: 'PENDING', label: PET_STATUS_LABEL.PENDING },
+  { value: 'ADOPTED', label: PET_STATUS_LABEL.ADOPTED },
+];
+
 interface Props {
   post: PostDetail | null;
 }
@@ -98,6 +110,8 @@ export default function PostDetailPage({ post }: Props) {
   const [status, setStatus] = useState<PostStatus>(post?.status ?? 'OPEN');
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<PostStatus | null>(null);
+  const [pets, setPets] = useState<AdoptionPetInfo[]>(post?.pets ?? []);
+  const [updatingPetIndex, setUpdatingPetIndex] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
@@ -131,6 +145,22 @@ export default function PostDetailPage({ post }: Props) {
     } finally {
       setUpdatingStatus(false);
       setPendingStatus(null);
+    }
+  };
+
+  const handlePetStatusChange = async (index: number, newStatus: AdoptionPetStatus) => {
+    if (pets[index]?.status === newStatus) return;
+    const updatedPets = pets.map((pet, i) => (i === index ? { ...pet, status: newStatus } : pet));
+    setUpdatingPetIndex(index);
+    try {
+      const updated = await api.patch(`/posts/${post.id}`, { pets: updatedPets }, accessToken || undefined);
+      setPets(updated.pets ?? updatedPets);
+      setStatus(updated.status);
+      setToast({ message: 'Đã cập nhật trạng thái bé.', type: 'success' });
+    } catch (err: any) {
+      setToast({ message: err.message || 'Cập nhật trạng thái thất bại.', type: 'error' });
+    } finally {
+      setUpdatingPetIndex(null);
     }
   };
 
@@ -235,9 +265,7 @@ export default function PostDetailPage({ post }: Props) {
                   {STATUS_LABEL[post.type][status]}
                 </span>
               )}
-              {post.pets && post.pets.length > 1 && (
-                <span className="badge badge-adoption">{post.pets.length} bé</span>
-              )}
+              {pets.length > 1 && <span className="badge badge-adoption">{pets.length} bé</span>}
             </div>
             <h1 className={styles.title}>{post.title}</h1>
             <p className={styles.meta}>
@@ -250,6 +278,7 @@ export default function PostDetailPage({ post }: Props) {
             </p>
             {post.price != null && <p className={styles.price}>{post.price.toLocaleString('vi-VN')}đ</p>}
 
+            <h3 className={styles.infoTitle}>Thông tin chi tiết</h3>
             <div className={styles.infoGrid}>
               <div className={styles.infoItem}>
                 <span>Địa điểm</span>
@@ -293,7 +322,7 @@ export default function PostDetailPage({ post }: Props) {
             <p className={styles.description}>{post.description || '-'}</p>
           </div>
 
-          {post.pets && post.pets.length > 0 && (
+          {pets.length > 0 && (
             <div className={styles.section}>
               <h3 className={styles.sectionTitle}>Danh sách bé cần tìm sen</h3>
               <div className={styles.petTableWrapper}>
@@ -306,10 +335,11 @@ export default function PostDetailPage({ post }: Props) {
                       <th>Tuổi (tháng)</th>
                       <th>Giới tính</th>
                       <th>Cân nặng (kg)</th>
+                      <th>Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {post.pets.map((pet, idx) => (
+                    {pets.map((pet, idx) => (
                       <tr key={idx}>
                         <td>{pet.species}</td>
                         <td>{pet.breed || '-'}</td>
@@ -317,6 +347,23 @@ export default function PostDetailPage({ post }: Props) {
                         <td>{pet.age ?? '-'}</td>
                         <td>{pet.gender ? GENDER_LABEL[pet.gender] : '-'}</td>
                         <td>{pet.size ?? '-'}</td>
+                        <td>
+                          {isOwner ? (
+                            <Dropdown
+                              size="sm"
+                              value={pet.status ?? 'PENDING'}
+                              disabled={updatingPetIndex === idx}
+                              onChange={(value) => handlePetStatusChange(idx, value as AdoptionPetStatus)}
+                              options={PET_STATUS_OPTIONS}
+                            />
+                          ) : (
+                            <span
+                              className={`badge ${pet.status === 'ADOPTED' ? 'badge-status-done' : 'badge-status-open'}`}
+                            >
+                              {PET_STATUS_LABEL[pet.status ?? 'PENDING']}
+                            </span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
