@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { useRouter } from 'next/router';
-import { MapPin } from 'lucide-react';
+import { MapPin, Plus, X } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { PostItem } from '../../../components/PostList';
@@ -393,8 +394,13 @@ export default function NewPostPage() {
 
   return (
     <div className={styles.wrapper}>
+      <div className={styles.backRow}>
+        <Link href={REDIRECT_PATH[parseType(router.query.type)]} className={styles.backLink}>
+          ‹ Quay lại danh sách
+        </Link>
+      </div>
       <h1 className={styles.title}>Đăng tin mới</h1>
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} className={styles.card}>
         <div className={`${styles.field} ${styles.typeField}`}>
           <label htmlFor="type">
             Loại tin<span className={styles.requiredMark}>*</span>
@@ -454,29 +460,46 @@ export default function NewPostPage() {
         </div>
 
         <div className={styles.field}>
-          <label htmlFor="images">Hình ảnh (không bắt buộc, tối đa {MAX_IMAGES} ảnh)</label>
+          <label htmlFor="images">
+            Hình ảnh <span className={styles.optionalHint}>(không bắt buộc, tối đa {MAX_IMAGES} ảnh)</span>
+          </label>
           <input
             id="images"
             ref={fileInputRef}
             type="file"
             accept="image/*"
             multiple
+            className={styles.hiddenFileInput}
             disabled={isSubmitting || uploadingImages}
             onChange={handleFilesSelected}
           />
           {imageError && <p style={{ color: 'red', fontSize: 13 }}>{imageError}</p>}
-          {imagePreviews.length > 0 && (
-            <div className={styles.imagePreviewGrid}>
-              {imagePreviews.map((src, idx) => (
-                <div key={src} className={styles.imagePreviewItem}>
-                  <img src={src} alt={`Ảnh ${idx + 1}`} />
-                  <button type="button" onClick={() => removeImage(idx)} aria-label="Xóa ảnh">
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className={styles.imageGrid}>
+            {imagePreviews.map((src, idx) => (
+              <div key={src} className={styles.imageTile}>
+                <img src={src} alt={`Ảnh ${idx + 1}`} />
+                <button
+                  type="button"
+                  className={styles.imageRemoveBtn}
+                  onClick={() => removeImage(idx)}
+                  aria-label="Xóa ảnh"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            {imagePreviews.length < MAX_IMAGES && (
+              <button
+                type="button"
+                className={styles.imageAddTile}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isSubmitting || uploadingImages}
+                aria-label="Thêm ảnh"
+              >
+                <Plus size={22} />
+              </button>
+            )}
+          </div>
         </div>
 
         {showSingleAnimal && (

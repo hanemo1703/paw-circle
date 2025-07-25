@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -62,8 +63,13 @@ export default function EditProfilePage() {
   return (
     <div className={`container ${styles.wrapper}`}>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <div className={styles.backRow}>
+        <Link href="/profile" className={styles.backLink}>
+          ‹ Quay lại hồ sơ
+        </Link>
+      </div>
       <h1 className={styles.title}>Chỉnh sửa hồ sơ</h1>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className={styles.card}>
         <div className={styles.field}>
           <label>Ảnh đại diện</label>
           <AvatarUploader value={avatarUrl} onChange={setAvatarUrl} accessToken={accessToken || undefined} />

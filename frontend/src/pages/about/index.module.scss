@@ -1,0 +1,205 @@
+@import '../../styles/variables';
+
+.wrapper {
+  padding-bottom: 40px;
+}
+
+.hero {
+  max-width: 680px;
+  text-align: center;
+  padding: 36px 20px 40px;
+}
+
+.badge {
+  display: inline-block;
+  background: #fbebd3;
+  color: #8a5a1e;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 18px;
+}
+
+.heroTitle {
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0 0 16px;
+  color: $color-navy;
+
+  @media (max-width: $breakpoint-tablet) {
+    font-size: 26px;
+  }
+}
+
+.heroSubtitle {
+  font-size: 16px;
+  line-height: 1.6;
+  color: $color-text-muted;
+  margin: 0;
+}
+
+.heroImageSection {
+  padding-bottom: 40px;
+}
+
+.heroImage {
+  width: 100%;
+  height: 280px;
+  border-radius: $radius-card;
+  background: linear-gradient(135deg, rgba($color-primary, 0.15), rgba($color-secondary, 0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-primary;
+}
+
+.statsSection {
+  max-width: 760px;
+  padding-bottom: 56px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.statBlock {
+  text-align: center;
+}
+
+.statNum {
+  font-family: $font-family-display;
+  font-weight: 700;
+  font-size: 32px;
+
+  @media (max-width: $breakpoint-tablet) {
+    font-size: 24px;
+  }
+}
+
+.statReunited {
+  color: #be4b3a;
+}
+
+.statAdopt {
+  color: #4c9873;
+}
+
+.statCampaign {
+  color: #4779a0;
+}
+
+.statLabel {
+  font-size: 14px;
+  color: $color-text-muted;
+  margin-top: 4px;
+}
+
+.valuesSection {
+  max-width: 1000px;
+  padding-bottom: 56px;
+}
+
+.valuesTitle {
+  font-size: 24px;
+  font-weight: 600;
+  text-align: center;
+  margin: 0 0 28px;
+  color: $color-navy;
+}
+
+.valueGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+
+  @media (max-width: $breakpoint-tablet) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.valueCard {
+  border-radius: $radius-card;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(43, 38, 32, 0.06);
+}
+
+.valueIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: $radius-sm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.valueCardTitle {
+  font-family: $font-family-display;
+  font-weight: 600;
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+
+.valueCardDesc {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+// Same accent trio as the landing page's quadrant cards — amber gets dark
+// text for contrast, the two darker backgrounds get white/light text.
+.valueCardFast {
+  background: #efb94a;
+
+  .valueIcon {
+    background: rgba(255, 255, 255, 0.35);
+    color: #4a3b14;
+  }
+
+  .valueCardTitle {
+    color: #4a3b14;
+  }
+
+  .valueCardDesc {
+    color: #5a481c;
+  }
+}
+
+.valueCardTrust {
+  background: #4c9873;
+
+  .valueIcon {
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+  }
+
+  .valueCardTitle {
+    color: #fff;
+  }
+
+  .valueCardDesc {
+    color: #e4f1ea;
+  }
+}
+
+.valueCardCommunity {
+  background: #4779a0;
+
+  .valueIcon {
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+  }
+
+  .valueCardTitle {
+    color: #fff;
+  }
+
+  .valueCardDesc {
+    color: #e3edf3;
+  }
+}
+
+.ctaSection {
+  text-align: center;
+  padding-bottom: 20px;
+}

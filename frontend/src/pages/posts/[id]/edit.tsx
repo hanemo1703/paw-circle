@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { useRouter } from 'next/router';
 import type { GetServerSideProps } from 'next';
-import { MapPin } from 'lucide-react';
+import { MapPin, Plus, X } from 'lucide-react';
 import { api, toAssetUrl } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import Dropdown from '../../../components/Dropdown';
@@ -359,7 +359,7 @@ export default function EditPostPage({ post }: Props) {
   return (
     <div className={styles.wrapper}>
       <h1 className={styles.title}>Chỉnh sửa tin ({TYPE_LABEL[type]})</h1>
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} className={styles.card}>
         <div className={styles.field}>
           <label htmlFor="title">
             Tiêu đề<span className={styles.requiredMark}>*</span>
@@ -379,37 +379,59 @@ export default function EditPostPage({ post }: Props) {
         </div>
 
         <div className={styles.field}>
-          <label htmlFor="images">Hình ảnh (không bắt buộc, tối đa {MAX_IMAGES} ảnh)</label>
+          <label htmlFor="images">
+            Hình ảnh <span className={styles.optionalHint}>(không bắt buộc, tối đa {MAX_IMAGES} ảnh)</span>
+          </label>
           <input
             id="images"
             ref={fileInputRef}
             type="file"
             accept="image/*"
             multiple
+            className={styles.hiddenFileInput}
             disabled={isSubmitting || uploadingImages || totalImages >= MAX_IMAGES}
             onChange={handleFilesSelected}
           />
           {imageError && <p style={{ color: 'red', fontSize: 13 }}>{imageError}</p>}
-          {(existingImages.length > 0 || imagePreviews.length > 0) && (
-            <div className={styles.imagePreviewGrid}>
-              {existingImages.map((img, idx) => (
-                <div key={img} className={styles.imagePreviewItem}>
-                  <img src={toAssetUrl(img)} alt={`Ảnh ${idx + 1}`} />
-                  <button type="button" onClick={() => removeExistingImage(idx)} aria-label="Xóa ảnh">
-                    ×
-                  </button>
-                </div>
-              ))}
-              {imagePreviews.map((src, idx) => (
-                <div key={src} className={styles.imagePreviewItem}>
-                  <img src={src} alt={`Ảnh mới ${idx + 1}`} />
-                  <button type="button" onClick={() => removeNewImage(idx)} aria-label="Xóa ảnh">
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className={styles.imageGrid}>
+            {existingImages.map((img, idx) => (
+              <div key={img} className={styles.imageTile}>
+                <img src={toAssetUrl(img)} alt={`Ảnh ${idx + 1}`} />
+                <button
+                  type="button"
+                  className={styles.imageRemoveBtn}
+                  onClick={() => removeExistingImage(idx)}
+                  aria-label="Xóa ảnh"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            {imagePreviews.map((src, idx) => (
+              <div key={src} className={styles.imageTile}>
+                <img src={src} alt={`Ảnh mới ${idx + 1}`} />
+                <button
+                  type="button"
+                  className={styles.imageRemoveBtn}
+                  onClick={() => removeNewImage(idx)}
+                  aria-label="Xóa ảnh"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            {totalImages < MAX_IMAGES && (
+              <button
+                type="button"
+                className={styles.imageAddTile}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isSubmitting || uploadingImages}
+                aria-label="Thêm ảnh"
+              >
+                <Plus size={22} />
+              </button>
+            )}
+          </div>
         </div>
 
         {showSingleAnimal && (

@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import type { GetServerSideProps } from 'next';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { MapPin, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, MessageCircle, Pencil, Phone, Share2, Trash2 } from 'lucide-react';
 import { api, toAssetUrl } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { formatRelativeTime } from '../../../lib/format';
 import Toast, { ToastType } from '../../../components/Toast';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import Dropdown from '../../../components/Dropdown';
 import styles from './index.module.scss';
+
+const PostLocationMap = dynamic(() => import('../../../components/PostLocationMap'), { ssr: false });
 
 type PostType = 'LOST' | 'FOUND' | 'ADOPTION' | 'MARKETPLACE' | 'TRADE';
 type PostStatus = 'OPEN' | 'RESOLVED' | 'CLOSED';
@@ -40,6 +44,8 @@ interface PostDetail {
   description: string;
   images: string[];
   address?: string;
+  latitude?: number;
+  longitude?: number;
   price?: number;
   species?: string;
   breed?: string;
@@ -102,9 +108,10 @@ const PET_STATUS_OPTIONS: { value: AdoptionPetStatus; label: string }[] = [
 
 interface Props {
   post: PostDetail | null;
+  authorPostCount: number;
 }
 
-export default function PostDetailPage({ post }: Props) {
+export default function PostDetailPage({ post, authorPostCount }: Props) {
   const router = useRouter();
   const [activeImage, setActiveImage] = useState(0);
   const [status, setStatus] = useState<PostStatus>(post?.status ?? 'OPEN');
@@ -127,6 +134,7 @@ export default function PostDetailPage({ post }: Props) {
 
   const images = post.images ?? [];
   const isOwner = !!user && !!post.author && user.id === post.author.id;
+  const hasLocation = post.latitude != null && post.longitude != null;
 
   const handleStatusChange = (newStatus: string) => {
     if (newStatus === status) return;
@@ -176,6 +184,24 @@ export default function PostDetailPage({ post }: Props) {
     }
   };
 
+  const handleMessageComingSoon = () => {
+    setToast({ message: 'Tính năng nhắn tin sắp ra mắt.', type: 'success' });
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: post.title, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setToast({ message: 'Đã sao chép liên kết bài đăng!', type: 'success' });
+    } catch {
+      // User cancelled the share sheet or clipboard write failed — no-op
+    }
+  };
+
   return (
     <div className={`container ${styles.wrapper}`}>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -200,29 +226,15 @@ export default function PostDetailPage({ post }: Props) {
           onCancel={() => setPendingStatus(null)}
         />
       )}
-      <div className={styles.topRow}>
+
+      <div className={styles.backRow}>
         <Link href={LIST_PATH[post.type]} className={styles.backLink}>
-          ← Quay lại danh sách
+          ‹ Quay lại danh sách
         </Link>
-        {isOwner && (
-          <div className={styles.ownerActions}>
-            <Link href={`/posts/${post.id}/edit`} className="btn btn-primary">
-              <Pencil size={16} /> Chỉnh sửa tin
-            </Link>
-            <button
-              type="button"
-              className="btn btn-danger"
-              onClick={() => setConfirmDeleteOpen(true)}
-              disabled={deleting}
-            >
-              <Trash2 size={16} /> {deleting ? 'Đang xóa...' : 'Xóa tin'}
-            </button>
-          </div>
-        )}
       </div>
 
       <div className={styles.layout}>
-        <div className={styles.gallery}>
+        <div className={styles.content}>
           <div className={styles.mainImageWrapper}>
             <img
               className={styles.mainImage}
@@ -243,53 +255,58 @@ export default function PostDetailPage({ post }: Props) {
               ))}
             </div>
           )}
-        </div>
 
-        <div className={styles.main}>
           <div className={styles.header}>
-            <div className={styles.badgeRow}>
-              <span className={BADGE_CLASS[post.type]}>{BADGE_LABEL[post.type]}</span>
-              {isOwner ? (
-                <Dropdown
-                  compact
-                  value={status}
-                  disabled={updatingStatus}
-                  onChange={handleStatusChange}
-                  options={(['OPEN', 'RESOLVED', 'CLOSED'] as PostStatus[]).map((s) => ({
-                    value: s,
-                    label: STATUS_LABEL[post.type][s],
-                  }))}
-                />
-              ) : (
-                <span className={`badge ${status === 'OPEN' ? 'badge-status-open' : 'badge-status-done'}`}>
-                  {STATUS_LABEL[post.type][status]}
-                </span>
-              )}
-              {pets.length > 1 && <span className="badge badge-adoption">{pets.length} bé</span>}
+            <div className={styles.titleRow}>
+              <h1 className={styles.title}>{post.title}</h1>
+              <div className={styles.badgeRow}>
+                <span className={BADGE_CLASS[post.type]}>{BADGE_LABEL[post.type]}</span>
+                {isOwner ? (
+                  <Dropdown
+                    compact
+                    value={status}
+                    disabled={updatingStatus}
+                    onChange={handleStatusChange}
+                    options={(['OPEN', 'RESOLVED', 'CLOSED'] as PostStatus[]).map((s) => ({
+                      value: s,
+                      label: STATUS_LABEL[post.type][s],
+                    }))}
+                  />
+                ) : (
+                  <span className={`badge ${status === 'OPEN' ? 'badge-status-open' : 'badge-status-done'}`}>
+                    {STATUS_LABEL[post.type][status]}
+                  </span>
+                )}
+                {pets.length > 1 && <span className="badge badge-adoption">{pets.length} bé</span>}
+              </div>
             </div>
-            <h1 className={styles.title}>{post.title}</h1>
             <p className={styles.meta}>
-              Đăng ngày{' '}
-              {new Date(post.createdAt).toLocaleDateString('vi-VN', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })}
+              Đăng {formatRelativeTime(post.createdAt)}
+              {post.address && (
+                <>
+                  {' · '}
+                  <MapPin size={14} style={{ verticalAlign: -2 }} /> {post.address}
+                </>
+              )}
             </p>
             {post.price != null && <p className={styles.price}>{post.price.toLocaleString('vi-VN')}đ</p>}
+          </div>
 
-            <h3 className={styles.infoTitle}>Thông tin chi tiết</h3>
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Mô tả</h3>
+            <p className={styles.description}>{post.description || '-'}</p>
+          </div>
+
+          {hasLocation && (
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>Vị trí</h3>
+              <PostLocationMap latitude={post.latitude as number} longitude={post.longitude as number} />
+            </div>
+          )}
+
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Thông tin chi tiết</h3>
             <div className={styles.infoGrid}>
-              <div className={styles.infoItem}>
-                <span>Địa điểm</span>
-                {post.address ? (
-                  <>
-                    <MapPin size={14} style={{ verticalAlign: -2 }} /> {post.address}
-                  </>
-                ) : (
-                  '-'
-                )}
-              </div>
               <div className={styles.infoItem}>
                 <span>Loài</span>
                 {post.species || '-'}
@@ -315,11 +332,6 @@ export default function PostDetailPage({ post }: Props) {
                 {post.collarDescription || '-'}
               </div>
             </div>
-          </div>
-
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>Mô tả</h3>
-            <p className={styles.description}>{post.description || '-'}</p>
           </div>
 
           {pets.length > 0 && (
@@ -371,24 +383,72 @@ export default function PostDetailPage({ post }: Props) {
               </div>
             </div>
           )}
+        </div>
 
+        <aside className={styles.sidebar}>
           {post.author && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Người đăng</h3>
-              <div className={styles.authorCard}>
+            <div className={styles.posterCard}>
+              <div className={styles.posterRow}>
                 <img
-                  className={styles.authorAvatar}
+                  className={styles.posterAvatar}
                   src={toAssetUrl(post.author.avatarUrl) || '/logo.jpg'}
                   alt={post.author.name}
                 />
                 <div>
-                  <p className={styles.authorName}>{post.author.name}</p>
-                  {post.author.phone && <p className={styles.authorPhone}>📞 {post.author.phone}</p>}
+                  <p className={styles.posterName}>{post.author.name}</p>
+                  <p className={styles.posterMeta}>Đã đăng {authorPostCount} tin</p>
                 </div>
               </div>
+              {post.author.phone && (
+                <p className={styles.posterPhone}>
+                  <Phone size={14} style={{ verticalAlign: -2 }} /> {post.author.phone}
+                </p>
+              )}
+              {!isOwner && (
+                <>
+                  <button type="button" className="btn btn-primary" onClick={handleMessageComingSoon}>
+                    <MessageCircle size={16} /> Nhắn tin cho người đăng
+                  </button>
+                  {post.type === 'FOUND' && (
+                    <button type="button" className="btn btn-outline" onClick={handleMessageComingSoon}>
+                      Mình nghĩ đây là bé của mình
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           )}
-        </div>
+
+          {isOwner && (
+            <div className={styles.ownerCard}>
+              <div className={styles.ownerCardTitle}>Chủ post</div>
+              <Dropdown
+                value={status}
+                disabled={updatingStatus}
+                onChange={handleStatusChange}
+                options={(['OPEN', 'RESOLVED', 'CLOSED'] as PostStatus[]).map((s) => ({
+                  value: s,
+                  label: STATUS_LABEL[post.type][s],
+                }))}
+              />
+              <Link href={`/posts/${post.id}/edit`} className={styles.sidebarLink}>
+                <Pencil size={16} /> Sửa tin
+              </Link>
+              <button
+                type="button"
+                className={`${styles.sidebarLink} ${styles.sidebarLinkDanger}`}
+                onClick={() => setConfirmDeleteOpen(true)}
+                disabled={deleting}
+              >
+                <Trash2 size={16} /> {deleting ? 'Đang xóa...' : 'Xóa tin'}
+              </button>
+            </div>
+          )}
+
+          <button type="button" className={styles.shareBtn} onClick={handleShare}>
+            <Share2 size={14} /> Chia sẻ
+          </button>
+        </aside>
       </div>
     </div>
   );
@@ -398,8 +458,17 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const id = ctx.params?.id as string;
   try {
     const post = await api.get(`/posts/${id}`);
-    return { props: { post } };
+    let authorPostCount = 0;
+    if (post?.author?.id) {
+      try {
+        const authorPosts = await api.get(`/posts?authorId=${post.author.id}`);
+        authorPostCount = authorPosts.length;
+      } catch {
+        // Best-effort only — sidebar just shows 0 posts if this fails
+      }
+    }
+    return { props: { post, authorPostCount } };
   } catch {
-    return { props: { post: null } };
+    return { props: { post: null, authorPostCount: 0 } };
   }
 };
