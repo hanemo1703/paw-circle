@@ -39,6 +39,7 @@ export class PostsService {
       where: {
         ...(query.type ? { type: query.type } : {}),
         ...(query.status ? { status: query.status } : {}),
+        ...(query.authorId ? { authorId: query.authorId } : {}),
       },
       order: { createdAt: 'DESC' },
     });
@@ -51,6 +52,10 @@ export class PostsService {
     }
     if (post.author) {
       delete (post.author as any).password;
+      if (!post.author.showPhonePublicly) delete (post.author as any).phone;
+      if (!post.author.showEmailPublicly) delete (post.author as any).email;
+      delete (post.author as any).showPhonePublicly;
+      delete (post.author as any).showEmailPublicly;
     }
     return post;
   }

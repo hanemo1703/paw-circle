@@ -5,6 +5,10 @@ export interface AuthUser {
   email: string;
   name: string;
   role: string;
+  phone?: string;
+  avatarUrl?: string;
+  showPhonePublicly?: boolean;
+  showEmailPublicly?: boolean;
 }
 
 interface AuthState {
@@ -16,6 +20,7 @@ interface AuthContextValue extends AuthState {
   isAuthenticated: boolean;
   login: (accessToken: string, user: AuthUser) => void;
   logout: () => void;
+  updateUser: (user: AuthUser) => void;
 }
 
 const STORAGE_KEY = 'petconnect_auth';
@@ -50,8 +55,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState(EMPTY_STATE);
   }
 
+  function updateUser(user: AuthUser) {
+    setState((prev) => {
+      const next = { ...prev, user };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }
+
   return (
-    <AuthContext.Provider value={{ ...state, isAuthenticated: !!state.accessToken, login, logout }}>
+    <AuthContext.Provider
+      value={{ ...state, isAuthenticated: !!state.accessToken, login, logout, updateUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

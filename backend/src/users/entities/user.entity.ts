@@ -53,6 +53,12 @@ export class User {
   @Column({ default: false })
   isVerifiedOrg: boolean;
 
+  @Column({ default: true })
+  showPhonePublicly: boolean;
+
+  @Column({ default: false })
+  showEmailPublicly: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 
