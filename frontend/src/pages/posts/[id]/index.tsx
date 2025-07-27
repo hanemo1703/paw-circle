@@ -184,6 +184,10 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
     }
   };
 
+  const handleMessageAuthor = () => {
+    if (post.author) router.push(`/messages/${post.author.id}`);
+  };
+
   const handleMessageComingSoon = () => {
     setToast({ message: 'Tính năng nhắn tin sắp ra mắt.', type: 'success' });
   };
@@ -406,7 +410,7 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
               )}
               {!isOwner && (
                 <>
-                  <button type="button" className="btn btn-primary" onClick={handleMessageComingSoon}>
+                  <button type="button" className="btn btn-primary" onClick={handleMessageAuthor}>
                     <MessageCircle size={16} /> Nhắn tin cho người đăng
                   </button>
                   {post.type === 'FOUND' && (

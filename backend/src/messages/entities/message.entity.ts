@@ -27,6 +27,9 @@ export class Message {
   @ManyToOne(() => User, (user) => user.messagesReceived)
   receiver: User;
 
+  @Column({ default: false })
+  isRead: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 }

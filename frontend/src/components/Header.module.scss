@@ -60,3 +60,36 @@
   align-items: center;
   gap: 12px;
 }
+
+.messagesLink {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-text-muted;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: $color-text;
+  }
+}
+
+.messagesLinkActive {
+  color: $color-primary;
+}
+
+.unreadBadge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: $color-primary;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}

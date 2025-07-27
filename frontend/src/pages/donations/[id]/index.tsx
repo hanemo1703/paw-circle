@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { GetServerSideProps } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { CheckCircle2, Pencil, Phone, Plus, Share2, X, XCircle } from 'lucide-react';
+import { CheckCircle2, MessageCircle, Pencil, Phone, Plus, Share2, X, XCircle } from 'lucide-react';
 import { api, toAssetUrl } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { formatRelativeTime } from '../../../lib/format';
@@ -244,6 +244,14 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
     } finally {
       setStatusUpdating(false);
     }
+  };
+
+  const handleMessageCreator = () => {
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+    router.push(`/messages/${campaign.creatorId}`);
   };
 
   const handleShare = async () => {
@@ -508,6 +516,16 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
                   <p className={styles.posterMeta}>{campaign.creatorCampaignCount ?? 1} chiến dịch đã thực hiện</p>
                 </div>
               </div>
+              {!isOwner && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ justifyContent: 'center' }}
+                  onClick={handleMessageCreator}
+                >
+                  <MessageCircle size={16} /> Nhắn tin cho người đăng
+                </button>
+              )}
             </div>
           )}
 

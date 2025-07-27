@@ -1,14 +1,17 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { MessageCircle } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { NAV_ITEMS } from '../lib/nav';
+import { useUnreadMessages } from '../lib/useUnreadMessages';
 import UserMenu from './UserMenu';
 import styles from './Header.module.scss';
 
 export default function Header() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
+  const unreadCount = useUnreadMessages();
 
   function handleLogout() {
     logout();
@@ -37,7 +40,18 @@ export default function Header() {
 
         <div className={styles.actions}>
           {isAuthenticated && user ? (
-            <UserMenu user={user} onLogout={handleLogout} />
+            <>
+              <Link
+                href="/messages"
+                className={`${styles.messagesLink} ${router.pathname.startsWith('/messages') ? styles.messagesLinkActive : ''}`}
+                title="Nhắn tin"
+                aria-label="Nhắn tin"
+              >
+                <MessageCircle size={21} />
+                {unreadCount > 0 && <span className={styles.unreadBadge}>{unreadCount}</span>}
+              </Link>
+              <UserMenu user={user} onLogout={handleLogout} />
+            </>
           ) : (
             <>
               <Link href="/login" className="btn btn-outline">

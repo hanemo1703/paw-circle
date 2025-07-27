@@ -1,5 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const API_ORIGIN = API_URL.replace(/\/api\/?$/, '');
+export const API_ORIGIN = API_URL.replace(/\/api\/?$/, '');
 
 async function request(path: string, options: RequestInit = {}) {
   const isFormData = options.body instanceof FormData;
@@ -34,7 +34,8 @@ async function request(path: string, options: RequestInit = {}) {
 }
 
 export const api = {
-  get: (path: string) => request(path),
+  get: (path: string, token?: string) =>
+    request(path, { headers: token ? { Authorization: `Bearer ${token}` } : undefined }),
   post: (path: string, body: unknown, token?: string) =>
     request(path, {
       method: 'POST',
