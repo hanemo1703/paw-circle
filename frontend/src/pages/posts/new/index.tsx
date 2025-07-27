@@ -698,6 +698,7 @@ export default function NewPostPage() {
                   onChange={field.onChange}
                   placeholder="-- Tỉnh/Thành phố --"
                   options={provinces.map((p) => ({ value: String(p.code), label: p.name }))}
+                  clearable
                 />
               )}
             />
@@ -713,6 +714,7 @@ export default function NewPostPage() {
                   disabled={!provinceCode}
                   placeholder="-- Phường/Xã --"
                   options={wards.map((w) => ({ value: String(w.code), label: w.name }))}
+                  clearable
                 />
               )}
             />

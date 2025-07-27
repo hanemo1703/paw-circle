@@ -1,0 +1,465 @@
+@import '../../../styles/variables';
+
+.wrapper {
+  padding: 20px 0 80px;
+}
+
+.backRow {
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.backLink {
+  display: inline-block;
+  color: $color-text-muted;
+  font-weight: 600;
+
+  &:hover {
+    color: $color-primary;
+  }
+}
+
+.layout {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+
+  @media (max-width: $breakpoint-tablet) {
+    flex-direction: column;
+  }
+}
+
+.content {
+  flex: 1.4;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.mainImageWrapper {
+  border-radius: $radius-card;
+  overflow: hidden;
+  background: $color-surface;
+  border: 1px solid $color-border;
+}
+
+.mainImage {
+  width: 100%;
+  height: 360px;
+  object-fit: contain;
+  display: block;
+
+  @media (max-width: $breakpoint-tablet) {
+    height: 240px;
+  }
+}
+
+.thumbRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.thumb {
+  width: 80px;
+  height: 80px;
+  border-radius: $radius-sm;
+  object-fit: cover;
+  cursor: pointer;
+  border: 2px solid transparent;
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.thumbActive {
+  border-color: $color-primary;
+  opacity: 1;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.badgeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 600;
+  color: $color-navy;
+  margin: 0;
+}
+
+.meta {
+  margin: 0;
+  color: $color-text-muted;
+  font-size: 14px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-weight: 600;
+  font-size: 17px;
+  color: $color-navy;
+}
+
+.description {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+.donorCard {
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-card;
+  padding: 8px 20px;
+}
+
+.donorRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid $color-border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.donorAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: $color-bg;
+  flex-shrink: 0;
+}
+
+.donorName {
+  flex: 1;
+  font-size: 14px;
+}
+
+.donorTime {
+  color: $color-text-muted;
+}
+
+// Sidebar
+
+.sidebar {
+  width: 340px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 88px;
+
+  @media (max-width: $breakpoint-tablet) {
+    width: 100%;
+    position: static;
+  }
+}
+
+.card {
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-card;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.donorCountTitle {
+  font-family: $font-family-display;
+  font-weight: 600;
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+
+.privacyNote {
+  font-size: 13px;
+  color: $color-text-muted;
+  margin: 0;
+}
+
+.bankLabel {
+  font-family: $font-family-display;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.bankBox {
+  border: 1.5px solid $color-border;
+  border-radius: $radius-md;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.qrImage {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.bankInfo {
+  width: 100%;
+  font-size: 13px;
+  line-height: 1.6;
+
+  span {
+    color: $color-text-muted;
+  }
+}
+
+.contactHint {
+  text-align: center;
+  font-size: 12.5px;
+  color: $color-text-muted;
+
+  button {
+    background: none;
+    border: none;
+    padding: 0;
+    color: $color-info;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: inherit;
+  }
+}
+
+.posterCard {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.posterAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: $color-bg;
+  flex-shrink: 0;
+}
+
+.posterName {
+  margin: 0;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.posterMeta {
+  margin: 0;
+  font-size: 12px;
+  color: $color-text-muted;
+}
+
+.ownerCardTitle {
+  font-family: $font-family-display;
+  font-weight: 600;
+  font-size: 13px;
+  color: $color-text-muted;
+  margin: 0;
+}
+
+.sidebarLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px;
+  border-radius: $radius-sm;
+  border: 1.5px solid $color-border;
+  background: none;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: $color-text;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-bg;
+  }
+}
+
+.disclaimer {
+  background: rgba($color-primary, 0.08);
+  border-radius: $radius-md;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: $color-text;
+}
+
+.notFound {
+  padding: 60px 0;
+  text-align: center;
+  color: $color-text-muted;
+}
+
+// Donate modal
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.dialog {
+  background: $color-surface;
+  border-radius: $radius-card;
+  padding: 28px;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dialogTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: $color-navy;
+}
+
+.dialogField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-family: $font-family-display;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  input,
+  textarea {
+    padding: 10px 12px;
+    border: 1.5px solid $color-border;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+
+    &:focus {
+      outline: 2px solid $color-primary;
+    }
+  }
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
+.proofImageField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.proofImageTile {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: $radius-sm;
+  overflow: hidden;
+  border: 1px solid $color-border;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.proofImageRemoveBtn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.8);
+  }
+}
+
+.proofImageAddBtn {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1.5px dashed $color-border;
+  border-radius: $radius-sm;
+  background: none;
+  color: $color-text-muted;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $color-primary;
+    color: $color-primary;
+  }
+}
+
+.dialogCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+
+  input {
+    width: 15px;
+    height: 15px;
+    accent-color: $color-primary;
+  }
+}
+
+.dialogActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}

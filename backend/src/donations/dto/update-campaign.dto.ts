@@ -9,9 +9,13 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
-import { CampaignCategory, CampaignPosterType } from '../entities/donation-campaign.entity';
+import { CampaignCategory, CampaignPosterType, CampaignStatus } from '../entities/donation-campaign.entity';
 
-export class CreateCampaignDto {
+export class UpdateCampaignDto {
+  @IsOptional()
+  @IsEnum(CampaignStatus)
+  status?: CampaignStatus;
+
   @IsOptional()
   @IsEnum(CampaignPosterType)
   posterType?: CampaignPosterType;
@@ -28,11 +32,13 @@ export class CreateCampaignDto {
   @IsString()
   organizationLink?: string;
 
+  @IsOptional()
   @IsString()
-  title: string;
+  title?: string;
 
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
   @IsOptional()
   @IsArray()

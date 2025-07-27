@@ -134,3 +134,18 @@ a {
   background: rgba($color-text-muted, 0.12);
   color: $color-text-muted;
 }
+
+.badge-campaign-active {
+  background: #fbebd3;
+  color: #8a5a1e;
+}
+
+.badge-campaign-completed {
+  background: rgba($color-secondary, 0.12);
+  color: $color-secondary;
+}
+
+.badge-campaign-cancelled {
+  background: $color-border;
+  color: $color-text-muted;
+}

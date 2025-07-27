@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import styles from './Dropdown.module.scss';
 
 export interface DropdownOption {
@@ -17,6 +18,8 @@ interface DropdownProps {
   disabled?: boolean;
   compact?: boolean;
   size?: 'md' | 'sm';
+  // Shows an "X" button that resets the selection back to no value (the placeholder).
+  clearable?: boolean;
 }
 
 export default function Dropdown({
@@ -29,6 +32,7 @@ export default function Dropdown({
   disabled,
   compact,
   size = 'md',
+  clearable = false,
 }: DropdownProps) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{ top: number; left?: number; right?: number; width?: number } | null>(
@@ -81,10 +85,23 @@ export default function Dropdown({
 
   const selected = options.find((o) => o.value === value);
 
+  function handleClear(e: React.MouseEvent) {
+    e.stopPropagation();
+    setOpen(false);
+    onChange('');
+    onBlur?.();
+  }
+
   return (
     <div
       ref={wrapperRef}
-      className={[styles.wrapper, compact && styles.compact, size === 'sm' && styles.sm, open && styles.open]
+      className={[
+        styles.wrapper,
+        compact && styles.compact,
+        size === 'sm' && styles.sm,
+        open && styles.open,
+        clearable && styles.clearable,
+      ]
         .filter(Boolean)
         .join(' ')}
     >
@@ -98,6 +115,17 @@ export default function Dropdown({
         <span className={styles.value}>{selected ? selected.label : placeholder}</span>
         <span className={styles.caret} aria-hidden="true" />
       </button>
+      {clearable && value && !disabled && (
+        <button
+          type="button"
+          className={styles.clearBtn}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={handleClear}
+          aria-label="Bỏ chọn"
+        >
+          <X size={12} />
+        </button>
+      )}
       {open &&
         menuStyle &&
         createPortal(

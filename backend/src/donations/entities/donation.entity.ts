@@ -22,6 +22,11 @@ export class Donation {
   @Column({ default: false })
   anonymous: boolean;
 
+  // Nullable at the DB level so pre-existing rows created before this column
+  // existed don't break `synchronize`; the API still requires it for new donations.
+  @Column({ nullable: true })
+  proofImageUrl?: string;
+
   @Column()
   donorId: string;
 
@@ -31,7 +36,7 @@ export class Donation {
   @Column()
   campaignId: string;
 
-  @ManyToOne(() => DonationCampaign, (campaign) => campaign.donations)
+  @ManyToOne(() => DonationCampaign, (campaign) => campaign.donations, { onDelete: 'CASCADE' })
   campaign: DonationCampaign;
 
   @CreateDateColumn()

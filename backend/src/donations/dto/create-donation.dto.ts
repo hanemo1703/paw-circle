@@ -12,4 +12,7 @@ export class CreateDonationDto {
   @IsOptional()
   @IsBoolean()
   anonymous?: boolean;
+
+  @IsString()
+  proofImageUrl: string;
 }

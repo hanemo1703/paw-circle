@@ -54,6 +54,34 @@ $caret-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' v
   background-size: 12px 8px;
 }
 
+.clearBtn {
+  position: absolute;
+  top: 50%;
+  right: 28px;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: $color-text-muted;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-border;
+    color: $color-text;
+  }
+}
+
+// Reserve room so the caret and clear button don't overlap the value text
+.clearable .trigger {
+  padding-right: 52px;
+}
+
 .list {
   margin: 0;
   padding: 4px;
@@ -107,9 +135,19 @@ $caret-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' v
     height: 7px;
   }
 
+  .clearBtn {
+    right: 20px;
+    width: 16px;
+    height: 16px;
+  }
+
   .option {
     font-size: 13px;
     padding: 6px 8px;
+  }
+
+  &.clearable .trigger {
+    padding-right: 42px;
   }
 }
 
@@ -128,6 +166,16 @@ $caret-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' v
   .caret {
     width: 10px;
     height: 7px;
+  }
+
+  .clearBtn {
+    right: 22px;
+    width: 16px;
+    height: 16px;
+  }
+
+  &.clearable .trigger {
+    padding-right: 46px;
   }
 
   .option {

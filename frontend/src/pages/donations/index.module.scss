@@ -17,6 +17,102 @@
   color: $color-navy;
 }
 
+.subtitle {
+  font-size: 14px;
+  color: $color-text-muted;
+  margin: 6px 0 0;
+}
+
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+}
+
+.sidebar {
+  width: 240px;
+  flex: none;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-card;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  box-shadow: 0 2px 10px rgba(43, 38, 32, 0.06);
+
+  @media (max-width: $breakpoint-tablet) {
+    width: 100%;
+  }
+}
+
+.sidebarSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebarTitle {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.sidebarGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.searchWrapper {
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  color: $color-text-muted;
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 13px 16px 13px 40px;
+  border: 1.5px solid $color-border;
+  border-radius: $radius-sm;
+  font-size: 14px;
+  font-family: inherit;
+  background: $color-surface;
+
+  &:focus {
+    outline: 2px solid $color-primary;
+  }
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: $color-text;
+  cursor: pointer;
+
+  input {
+    width: 15px;
+    height: 15px;
+    accent-color: $color-primary;
+  }
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -28,10 +124,54 @@
 }
 
 .card {
+  display: block;
   background: $color-surface;
   border: 1px solid $color-border;
   border-radius: $radius-card;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(43, 38, 32, 0.06);
+  transition: box-shadow 0.15s ease;
+
+  &:hover {
+    box-shadow: 0 6px 20px rgba(43, 38, 32, 0.12);
+  }
+}
+
+.cardImage {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+  background: $color-bg;
+}
+
+.cardBody {
   padding: 20px;
+
+  h3 {
+    margin: 8px 0 6px;
+  }
+
+  p {
+    margin: 0;
+    color: $color-text-muted;
+    font-size: 14px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+.badgeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remaining {
+  font-size: 12px;
+  color: $color-text-muted;
 }
 
 .progressTrack {
@@ -51,6 +191,56 @@
   display: flex;
   justify-content: space-between;
   font-size: 13px;
+  color: $color-text-muted;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0 0;
+}
+
+.pageBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: $color-text-muted;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: $color-bg;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.pageBtnActive {
+  background: $color-primary;
+  color: white;
+
+  &:hover {
+    background: $color-primary;
+  }
+}
+
+.pageEllipsis {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: $color-text-muted;
 }
 
