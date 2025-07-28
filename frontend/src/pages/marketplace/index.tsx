@@ -31,7 +31,7 @@ export default function MarketplacePage({ posts }: Props) {
         title="Cho / trao đổi đồ dùng"
         posts={posts}
         emptyText="Chưa có đồ dùng nào được đăng. Hãy chia sẻ đồ cũ cho bé khác nhé!"
-        newPostType="MARKETPLACE"
+        newPostType="SUPPLY"
       />
     </>
   );
@@ -40,7 +40,7 @@ export default function MarketplacePage({ posts }: Props) {
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   let posts: PostItem[] = [];
   try {
-    posts = await api.get('/posts?type=MARKETPLACE');
+    posts = await api.get('/posts?type=SUPPLY');
   } catch {
     // Backend not running — still render the page with an empty list
   }

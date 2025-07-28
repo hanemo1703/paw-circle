@@ -14,7 +14,7 @@ import styles from './index.module.scss';
 
 const PostLocationMap = dynamic(() => import('../../../components/PostLocationMap'), { ssr: false });
 
-type PostType = 'LOST' | 'FOUND' | 'ADOPTION' | 'MARKETPLACE' | 'TRADE';
+type PostType = 'LOST' | 'ADOPTION' | 'SUPPLY' | 'TRADE';
 type PostStatus = 'OPEN' | 'RESOLVED' | 'CLOSED';
 type PetGender = 'MALE' | 'FEMALE' | 'UNKNOWN';
 type AdoptionPetStatus = 'PENDING' | 'ADOPTED';
@@ -60,33 +60,29 @@ interface PostDetail {
 
 const BADGE_CLASS: Record<PostType, string> = {
   LOST: 'badge badge-lost',
-  FOUND: 'badge badge-found',
   ADOPTION: 'badge badge-adoption',
-  MARKETPLACE: 'badge badge-found',
+  SUPPLY: 'badge badge-supply',
   TRADE: 'badge badge-trade',
 };
 
 const BADGE_LABEL: Record<PostType, string> = {
   LOST: 'Bị lạc',
-  FOUND: 'Đã tìm thấy',
   ADOPTION: 'Cần người nuôi',
-  MARKETPLACE: 'Đồ dùng',
+  SUPPLY: 'Đồ dùng',
   TRADE: 'Mua bán boss',
 };
 
 const STATUS_LABEL: Record<PostType, Record<PostStatus, string>> = {
   LOST: { OPEN: 'Đang tìm', RESOLVED: 'Đã tìm thấy', CLOSED: 'Đã đóng tin' },
-  FOUND: { OPEN: 'Đang chờ nhận', RESOLVED: 'Đã trả về chủ', CLOSED: 'Đã đóng tin' },
   ADOPTION: { OPEN: 'Còn bé chờ nhận nuôi', RESOLVED: 'Đã có chủ mới', CLOSED: 'Đã đóng tin' },
-  MARKETPLACE: { OPEN: 'Còn đồ', RESOLVED: 'Đã cho xong', CLOSED: 'Đã đóng tin' },
+  SUPPLY: { OPEN: 'Còn đồ', RESOLVED: 'Đã cho xong', CLOSED: 'Đã đóng tin' },
   TRADE: { OPEN: 'Còn hàng', RESOLVED: 'Đã bán', CLOSED: 'Đã đóng tin' },
 };
 
 const LIST_PATH: Record<PostType, string> = {
   LOST: '/lost-found',
-  FOUND: '/lost-found',
   ADOPTION: '/adoption',
-  MARKETPLACE: '/marketplace',
+  SUPPLY: '/marketplace',
   TRADE: '/trade',
 };
 
@@ -188,17 +184,6 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
     if (post.author) router.push(`/messages/${post.author.id}`);
   };
 
-  const handleClaimPet = () => {
-    if (!post.author) return;
-    if (!accessToken) {
-      router.push('/login');
-      return;
-    }
-    router.push(
-      `/messages/${post.author.id}?prefill=${encodeURIComponent('Mình nghĩ đây là bé của mình. Bạn cho mình xin thêm thông tin để xác nhận nhé!')}`,
-    );
-  };
-
   const handleShare = async () => {
     const url = window.location.href;
     try {
@@ -275,6 +260,7 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
                 {isOwner ? (
                   <Dropdown
                     compact
+                    tone={status === 'OPEN' ? 'accent' : 'muted'}
                     value={status}
                     disabled={updatingStatus}
                     onChange={handleStatusChange}
@@ -416,16 +402,9 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
                 </p>
               )}
               {!isOwner && (
-                <>
-                  <button type="button" className="btn btn-primary" onClick={handleMessageAuthor}>
-                    <MessageCircle size={16} /> Nhắn tin cho người đăng
-                  </button>
-                  {post.type === 'FOUND' && (
-                    <button type="button" className="btn btn-outline" onClick={handleClaimPet}>
-                      Mình nghĩ đây là bé của mình
-                    </button>
-                  )}
-                </>
+                <button type="button" className="btn btn-primary" onClick={handleMessageAuthor}>
+                  <MessageCircle size={16} /> Nhắn tin cho người đăng
+                </button>
               )}
             </div>
           )}
@@ -433,15 +412,6 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
           {isOwner && (
             <div className={styles.ownerCard}>
               <div className={styles.ownerCardTitle}>Chủ post</div>
-              <Dropdown
-                value={status}
-                disabled={updatingStatus}
-                onChange={handleStatusChange}
-                options={(['OPEN', 'RESOLVED', 'CLOSED'] as PostStatus[]).map((s) => ({
-                  value: s,
-                  label: STATUS_LABEL[post.type][s],
-                }))}
-              />
               <Link href={`/posts/${post.id}/edit`} className={styles.sidebarLink}>
                 <Pencil size={16} /> Sửa tin
               </Link>

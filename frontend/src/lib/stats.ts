@@ -14,13 +14,12 @@ export async function fetchSiteStats(): Promise<SiteStats> {
   let activeCampaignCount = 0;
 
   try {
-    const [lostResolved, foundResolved, adoptionOpen, campaigns] = await Promise.all([
+    const [lostResolved, adoptionOpen, campaigns] = await Promise.all([
       api.get('/posts?type=LOST&status=RESOLVED'),
-      api.get('/posts?type=FOUND&status=RESOLVED'),
       api.get('/posts?type=ADOPTION&status=OPEN'),
       api.get('/donations/campaigns'),
     ]);
-    reunitedCount = lostResolved.length + foundResolved.length;
+    reunitedCount = lostResolved.length;
     pendingAdoptionCount = adoptionOpen.reduce(
       (sum: number, post: { pets?: unknown[] }) => sum + (post.pets?.length || 1),
       0,

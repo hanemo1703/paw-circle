@@ -9,7 +9,6 @@ interface Props {
   posts: PostItem[];
 }
 
-// Page combining both "lost" (LOST) and "found" (FOUND) posts
 export default function LostFoundPage({ posts }: Props) {
   const router = useRouter();
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
@@ -31,7 +30,7 @@ export default function LostFoundPage({ posts }: Props) {
       <PostList
         title="Tìm chó mèo lạc"
         posts={posts}
-        emptyText="Chưa có tin báo mất/tìm thấy nào. Hãy là người đầu tiên đăng tin!"
+        emptyText="Chưa có tin báo lạc nào. Hãy là người đầu tiên đăng tin!"
         newPostType="LOST"
       />
     </>
@@ -39,17 +38,13 @@ export default function LostFoundPage({ posts }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  let lostPosts: PostItem[] = [];
-  let foundPosts: PostItem[] = [];
+  let posts: PostItem[] = [];
 
   try {
-    [lostPosts, foundPosts] = await Promise.all([
-      api.get('/posts?type=LOST'),
-      api.get('/posts?type=FOUND'),
-    ]);
+    posts = await api.get('/posts?type=LOST');
   } catch {
     // Backend not running — still render the page with an empty list
   }
 
-  return { props: { posts: [...lostPosts, ...foundPosts] } };
+  return { props: { posts } };
 };

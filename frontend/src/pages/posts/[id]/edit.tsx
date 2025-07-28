@@ -16,7 +16,7 @@ const MAX_IMAGE_SIZE_MB = 5;
 
 const LocationPicker = dynamic(() => import('../../../components/LocationPicker'), { ssr: false });
 
-type PostType = 'LOST' | 'FOUND' | 'ADOPTION' | 'MARKETPLACE' | 'TRADE';
+type PostType = 'LOST' | 'ADOPTION' | 'SUPPLY' | 'TRADE';
 type PetGender = 'MALE' | 'FEMALE' | 'UNKNOWN';
 type AdoptionPetStatus = 'PENDING' | 'ADOPTED';
 
@@ -59,9 +59,8 @@ interface PostDetail {
 
 const TYPE_LABEL: Record<PostType, string> = {
   LOST: 'Tìm boss lạc',
-  FOUND: 'Đã tìm thấy',
   ADOPTION: 'Tuyển sen/Tìm sen',
-  MARKETPLACE: 'Cho tặng đồ dùng',
+  SUPPLY: 'Cho tặng đồ dùng',
   TRADE: 'Mua bán boss',
 };
 
@@ -266,7 +265,7 @@ export default function EditPostPage({ post }: Props) {
 
   const type = post.type;
   const showPrice = type === 'TRADE';
-  const showSpecies = type !== 'MARKETPLACE';
+  const showSpecies = type !== 'SUPPLY';
   const showPetList = type === 'ADOPTION';
   const showSingleAnimal = showSpecies && !showPetList;
   const selectedProvince = provinces.find((p) => String(p.code) === provinceCode);
@@ -667,6 +666,7 @@ export default function EditPostPage({ post }: Props) {
               id="price"
               type="number"
               min={0}
+              placeholder="VD: 150000"
               {...register('price', { required: 'Vui lòng nhập giá.' })}
             />
             {errors.price && <p style={{ color: 'red', fontSize: 13 }}>{errors.price.message}</p>}

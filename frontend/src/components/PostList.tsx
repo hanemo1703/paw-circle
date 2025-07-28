@@ -20,7 +20,7 @@ export interface PostItem {
   id: string;
   title: string;
   description: string;
-  type: 'LOST' | 'FOUND' | 'ADOPTION' | 'MARKETPLACE' | 'TRADE';
+  type: 'LOST' | 'ADOPTION' | 'SUPPLY' | 'TRADE';
   status?: 'OPEN' | 'RESOLVED' | 'CLOSED';
   price?: number;
   address?: string;
@@ -65,40 +65,56 @@ function getPageNumbers(current: number, total: number): (number | '...')[] {
 
 export const BADGE_CLASS: Record<PostItem['type'], string> = {
   LOST: 'badge badge-lost',
-  FOUND: 'badge badge-found',
   ADOPTION: 'badge badge-adoption',
-  MARKETPLACE: 'badge badge-found',
+  SUPPLY: 'badge badge-supply',
   TRADE: 'badge badge-trade',
 };
 
 export const BADGE_LABEL: Record<PostItem['type'], string> = {
   LOST: 'Bị lạc',
-  FOUND: 'Đã tìm thấy',
   ADOPTION: 'Cần người nuôi',
-  MARKETPLACE: 'Đồ dùng',
+  SUPPLY: 'Đồ dùng',
   TRADE: 'Mua bán boss',
 };
 
 const STATUS_LABEL: Record<PostItem['type'], Record<'OPEN' | 'RESOLVED' | 'CLOSED', string>> = {
   LOST: { OPEN: 'Đang tìm', RESOLVED: 'Đã tìm thấy', CLOSED: 'Đã đóng tin' },
-  FOUND: { OPEN: 'Đang chờ nhận', RESOLVED: 'Đã trả về chủ', CLOSED: 'Đã đóng tin' },
   ADOPTION: { OPEN: 'Còn bé chờ nhận nuôi', RESOLVED: 'Đã có chủ mới', CLOSED: 'Đã đóng tin' },
-  MARKETPLACE: { OPEN: 'Còn đồ', RESOLVED: 'Đã cho xong', CLOSED: 'Đã đóng tin' },
+  SUPPLY: { OPEN: 'Còn đồ', RESOLVED: 'Đã cho xong', CLOSED: 'Đã đóng tin' },
   TRADE: { OPEN: 'Còn hàng', RESOLVED: 'Đã bán', CLOSED: 'Đã đóng tin' },
 };
 
 const STATUS_VALUES = ['OPEN', 'RESOLVED', 'CLOSED'] as const;
 
-// Builds filter option labels from whatever post types are actually in the list, so the
-// wording always matches the status badge shown on each card (e.g. LOST says "Đang tìm",
-// FOUND says "Đang chờ nhận" — a page mixing both, like lost-found, joins them with " / ").
-function buildStatusOptions(posts: PostItem[]) {
+interface StatusOption {
+  value: string;
+  label: string;
+  status: (typeof STATUS_VALUES)[number];
+}
+
+// Builds one chip per distinct wording actually used by the post types present, so a mixed
+// page like "Bài post của tôi" (all types) shows e.g. "Đang tìm" and "Còn hàng" as separate,
+// independently selectable chips instead of one joined chip. Types that share identical
+// wording for a status (e.g. every type's CLOSED says "Đã đóng tin") collapse into a single
+// chip whose value covers all of them.
+function buildStatusOptions(posts: PostItem[]): StatusOption[] {
   const typesPresent = Array.from(new Set(posts.map((p) => p.type)));
   const types = typesPresent.length > 0 ? typesPresent : (Object.keys(STATUS_LABEL) as PostItem['type'][]);
-  return STATUS_VALUES.map((status) => ({
-    value: status,
-    label: Array.from(new Set(types.map((type) => STATUS_LABEL[type][status]))).join(' / '),
-  }));
+  return STATUS_VALUES.flatMap((status) => {
+    const combosByLabel = new Map<string, string[]>();
+    for (const type of types) {
+      const label = STATUS_LABEL[type][status];
+      const combo = `${type}:${status}`;
+      const combos = combosByLabel.get(label);
+      if (combos) combos.push(combo);
+      else combosByLabel.set(label, [combo]);
+    }
+    return Array.from(combosByLabel.entries()).map(([label, combos]) => ({
+      value: combos.join(','),
+      label,
+      status,
+    }));
+  });
 }
 
 function FilterChipGroup({
@@ -141,8 +157,11 @@ export default function PostList({
   emptyText: string;
   newPostType: PostItem['type'];
 }) {
-  const [typeFilter, setTypeFilter] = useState<string[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string[]>(['OPEN']);
+  const [statusFilter, setStatusFilter] = useState<string[]>(() =>
+    buildStatusOptions(posts)
+      .filter((opt) => opt.status === 'OPEN')
+      .map((opt) => opt.value),
+  );
   const [speciesFilter, setSpeciesFilter] = useState<string[]>([]);
   const [areaFilter, setAreaFilter] = useState<string[]>([]);
   const [areaOptions, setAreaOptions] = useState<{ value: string; label: string }[]>([]);
@@ -151,11 +170,6 @@ export default function PostList({
   const [view, setView] = useState<'list' | 'map'>('list');
   const [page, setPage] = useState(1);
 
-  const typeOptions = useMemo(
-    () =>
-      Array.from(new Set(posts.map((p) => p.type))).map((t) => ({ value: t, label: BADGE_LABEL[t] })),
-    [posts],
-  );
   const statusOptions = useMemo(() => buildStatusOptions(posts), [posts]);
 
   useEffect(() => {
@@ -180,11 +194,9 @@ export default function PostList({
   const filteredPosts = useMemo(() => {
     return posts
       .filter((post) => {
-        if (typeFilter.length > 0 && !typeFilter.includes(post.type)) {
-          return false;
-        }
-        if (statusFilter.length > 0 && (!post.status || !statusFilter.includes(post.status))) {
-          return false;
+        if (statusFilter.length > 0) {
+          const postCombo = post.status ? `${post.type}:${post.status}` : null;
+          if (!postCombo || !statusFilter.some((v) => v.split(',').includes(postCombo))) return false;
         }
         if (!matchesSpeciesFilter(post, speciesFilter)) {
           return false;
@@ -198,25 +210,23 @@ export default function PostList({
         return true;
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [posts, typeFilter, statusFilter, speciesFilter, areaFilter, search]);
+  }, [posts, statusFilter, speciesFilter, areaFilter, search]);
 
   useEffect(() => {
     setPage(1);
-  }, [typeFilter, statusFilter, speciesFilter, areaFilter, search]);
+  }, [statusFilter, speciesFilter, areaFilter, search]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPosts.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pagedPosts = filteredPosts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const hasActiveFilters =
-    typeFilter.length > 0 ||
     statusFilter.length > 0 ||
     speciesFilter.length > 0 ||
     areaFilter.length > 0 ||
     searchInput.trim().length > 0;
 
   function clearFilters() {
-    setTypeFilter([]);
     setStatusFilter([]);
     setSpeciesFilter([]);
     setAreaFilter([]);
@@ -237,14 +247,6 @@ export default function PostList({
       ) : (
         <div className={styles.body}>
           <aside className={styles.sidebar}>
-            {typeOptions.length > 1 && (
-              <FilterChipGroup
-                title="Loại tin"
-                options={typeOptions}
-                selected={typeFilter}
-                onChange={setTypeFilter}
-              />
-            )}
             <FilterChipGroup
               title="Trạng thái"
               options={statusOptions}

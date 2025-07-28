@@ -20,6 +20,9 @@ interface DropdownProps {
   size?: 'md' | 'sm';
   // Shows an "X" button that resets the selection back to no value (the placeholder).
   clearable?: boolean;
+  // Colors the trigger like a badge, so a compact status dropdown can match the read-only
+  // badge shown to non-owners for the same value (e.g. "accent" for open, "muted" for done).
+  tone?: 'accent' | 'muted';
 }
 
 export default function Dropdown({
@@ -33,6 +36,7 @@ export default function Dropdown({
   compact,
   size = 'md',
   clearable = false,
+  tone,
 }: DropdownProps) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{ top: number; left?: number; right?: number; width?: number } | null>(
@@ -101,6 +105,8 @@ export default function Dropdown({
         size === 'sm' && styles.sm,
         open && styles.open,
         clearable && styles.clearable,
+        tone === 'accent' && styles.toneAccent,
+        tone === 'muted' && styles.toneMuted,
       ]
         .filter(Boolean)
         .join(' ')}

@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -54,8 +55,10 @@ export class UpdatePostDto {
   @IsInt()
   wardCode?: number;
 
+  // VND has no subunit in everyday use, so prices are always whole đồng amounts.
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   price?: number;
 
   @IsOptional()

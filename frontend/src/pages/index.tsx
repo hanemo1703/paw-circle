@@ -60,8 +60,8 @@ export default function LandingPage({ reunitedCount, pendingAdoptionCount, activ
           <Link href="/marketplace" className={`${styles.quadCard} ${styles.quadMarket}`}>
             <ShoppingBag size={32} />
             <div>
-              <div className={styles.quadTitle}>Chợ đồ thú cưng</div>
-              <div className={styles.quadDesc}>Mua bán đồ dùng cũ, giá tốt</div>
+              <div className={styles.quadTitle}>Cho tặng đồ dùng</div>
+              <div className={styles.quadDesc}>Chia sẻ đồ cũ, dụng cụ cho bé khác</div>
             </div>
           </Link>
           <Link href="/donations" className={`${styles.quadCard} ${styles.quadDonate}`}>

@@ -187,3 +187,17 @@ $caret-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' v
 .listCompact {
   min-width: 180px;
 }
+
+// Matches badge-status-open / badge-status-done colors, for compact dropdowns that stand
+// in for a read-only status badge (e.g. the owner-editable status control on a post page).
+.toneAccent .trigger {
+  background: rgba($color-secondary, 0.12);
+  border-color: transparent;
+  color: $color-secondary;
+}
+
+.toneMuted .trigger {
+  background: rgba($color-text-muted, 0.12);
+  border-color: transparent;
+  color: $color-text-muted;
+}

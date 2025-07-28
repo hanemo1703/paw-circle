@@ -31,8 +31,7 @@ export default function ProfilePage() {
     ])
       .then(([posts, pets]) => {
         const reunited = posts.filter(
-          (p: { type: string; status: string }) =>
-            (p.type === 'LOST' || p.type === 'FOUND') && p.status === 'RESOLVED',
+          (p: { type: string; status: string }) => p.type === 'LOST' && p.status === 'RESOLVED',
         ).length;
         setStats({ postCount: posts.length, reunitedCount: reunited, petCount: pets.length });
       })

@@ -17,8 +17,7 @@ const DEFAULT_ZOOM = 5;
 // their single pin color instead of importing SCSS vars.
 const PIN_COLOR: Record<PostItem['type'], string> = {
   LOST: '#d64545',
-  FOUND: '#3b82c4',
-  MARKETPLACE: '#3b82c4',
+  SUPPLY: '#3b82c4',
   ADOPTION: '#2f6f4e',
   TRADE: '#ff5b2e',
 };

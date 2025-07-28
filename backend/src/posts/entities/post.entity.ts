@@ -11,9 +11,8 @@ import { Pet } from '../../pets/entities/pet.entity';
 
 export enum PostType {
   LOST = 'LOST',
-  FOUND = 'FOUND',
   ADOPTION = 'ADOPTION',
-  MARKETPLACE = 'MARKETPLACE',
+  SUPPLY = 'SUPPLY',
   TRADE = 'TRADE',
 }
 

@@ -17,16 +17,14 @@ const MAX_IMAGE_SIZE_MB = 5;
 
 const LocationPicker = dynamic(() => import('../../../components/LocationPicker'), { ssr: false });
 
-type PostType = PostItem['type'];
-// Users can only create these types through this form (FOUND is view-only elsewhere)
-type CreatableType = Exclude<PostType, 'FOUND'>;
+type CreatableType = PostItem['type'];
 
-const TYPE_OPTIONS: CreatableType[] = ['LOST', 'ADOPTION', 'MARKETPLACE', 'TRADE'];
+const TYPE_OPTIONS: CreatableType[] = ['LOST', 'ADOPTION', 'SUPPLY', 'TRADE'];
 
 const TYPE_LABEL: Record<CreatableType, string> = {
   LOST: 'Tìm boss lạc',
   ADOPTION: 'Tuyển sen/Tìm sen',
-  MARKETPLACE: 'Cho tặng đồ dùng',
+  SUPPLY: 'Cho tặng đồ dùng',
   TRADE: 'Mua bán boss',
 };
 
@@ -38,12 +36,12 @@ const LABEL_TO_TYPE: Record<string, CreatableType> = TYPE_OPTIONS.reduce(
 const REDIRECT_PATH: Record<CreatableType, string> = {
   LOST: '/lost-found',
   ADOPTION: '/adoption',
-  MARKETPLACE: '/marketplace',
+  SUPPLY: '/marketplace',
   TRADE: '/trade',
 };
 
 function parseType(value: unknown): CreatableType {
-  return value === 'LOST' || value === 'ADOPTION' || value === 'MARKETPLACE' || value === 'TRADE'
+  return value === 'LOST' || value === 'ADOPTION' || value === 'SUPPLY' || value === 'TRADE'
     ? value
     : 'LOST';
 }
@@ -270,7 +268,7 @@ export default function NewPostPage() {
 
   const type = LABEL_TO_TYPE[typeText.trim()] ?? null;
   const showPrice = type === 'TRADE';
-  const showSpecies = type !== 'MARKETPLACE';
+  const showSpecies = type !== 'SUPPLY';
   const showPetList = type === 'ADOPTION';
   const showSingleAnimal = showSpecies && !showPetList;
   const selectedProvince = provinces.find((p) => String(p.code) === provinceCode);
@@ -632,6 +630,7 @@ export default function NewPostPage() {
               id="price"
               type="number"
               min={0}
+              placeholder="VD: 150000"
               {...register('price', { required: 'Vui lòng nhập giá.' })}
             />
             {errors.price && <p style={{ color: 'red', fontSize: 13 }}>{errors.price.message}</p>}
