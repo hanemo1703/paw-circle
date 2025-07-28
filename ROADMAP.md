@@ -18,9 +18,9 @@ Danh sách tính năng cần làm tiếp theo, xếp theo thứ tự ưu tiên �
   - Đã làm: `POST /api/auth/forgot-password` (luôn trả thông báo chung chung để tránh lộ email nào đã đăng ký) sinh token ngẫu nhiên 30 phút lưu trên `User`; `POST /api/auth/reset-password` xác thực token + đặt mật khẩu mới. Trang `/forgot-password` và `/reset-password` + link "Quên mật khẩu?" ở `/login`.
   - Còn thiếu: **chưa có gửi email thật** — chưa cấu hình SMTP/mail provider nên link reset chỉ được log ra console backend (xem `Logger` trong `forgotPassword()`), cần cắm mail provider thật trước khi lên production. Xác thực email lúc đăng ký (email verification on signup) cũng chưa làm — nằm ngoài phạm vi đã sửa lần này.
 
-- [ ] **5. Xem bản đồ (map view)**
-  - File: `frontend/src/components/PostList.tsx:308` — hiện chỉ hiện "Chức năng xem trên bản đồ sắp ra mắt."
-  - Cần làm: tích hợp maps SDK để ghim vị trí các bài lost/found/adoption (filter theo khu vực đã có sẵn).
+- [x] **5. Xem bản đồ (map view)**
+  - File: `frontend/src/components/PostsMapView.tsx` (mới); `PostList.tsx`; `backend/src/posts/geocoding.util.ts` (mới), `posts.service.ts`, `posts.controller.ts`
+  - Đã làm: chế độ "Bản đồ" trong `PostList` giờ hiện Leaflet map nhiều marker (màu theo loại tin), tái dùng `filteredPosts` nên vẫn tôn trọng mọi bộ lọc hiện có (kể cả Khu vực). Đa số bài cũ chỉ có địa chỉ dạng text, không có lat/lng (việc ghim vị trí lúc tạo tin là tùy chọn) — nên thêm forward-geocode qua Nominatim: tự động điền tọa độ khi tạo/sửa bài có địa chỉ nhưng chưa có tọa độ, và một endpoint riêng `POST /api/posts/geocode-missing` chỉ được gọi khi người dùng thực sự mở chế độ bản đồ (không đụng vào `findAll`) để backfill dần các bài cũ, tránh làm chậm các trang danh sách bình thường.
 
 - [ ] **6. Xác minh thanh toán donation thật**
   - File: `backend/src/donations/donations.service.ts:127-149`

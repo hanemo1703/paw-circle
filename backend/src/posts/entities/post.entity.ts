@@ -74,6 +74,14 @@ export class Post {
   @Column({ nullable: true })
   address?: string;
 
+  // provinces.open-api.vn codes — kept alongside `address` so the "Khu vực" filter
+  // can match by code instead of parsing province/ward names out of free text.
+  @Column({ type: 'int', nullable: true })
+  provinceCode?: number;
+
+  @Column({ type: 'int', nullable: true })
+  wardCode?: number;
+
   @Column({ type: 'float', nullable: true })
   price?: number;
 

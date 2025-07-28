@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Map, MapPin, Search, Wallet } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Search, Wallet } from 'lucide-react';
 import { toAssetUrl } from '../lib/api';
 import { formatRelativeTime } from '../lib/format';
 import MultiSelectDropdown from './MultiSelectDropdown';
 import styles from './PostList.module.scss';
+
+// Leaflet touches `window` at import time, so it can't be rendered during SSR
+// (same pattern as LocationPicker/PostLocationMap).
+const PostsMapView = dynamic(() => import('./PostsMapView'), { ssr: false });
 
 // Same source used by the "new post" location picker for Tỉnh/Thành phố options.
 const PROVINCES_API_URL = 'https://provinces.open-api.vn/api/v2/p/';
@@ -19,7 +24,10 @@ export interface PostItem {
   status?: 'OPEN' | 'RESOLVED' | 'CLOSED';
   price?: number;
   address?: string;
+  latitude?: number;
+  longitude?: number;
   species?: string;
+  provinceCode?: number;
   images?: string[];
   pets?: unknown[];
   createdAt: string;
@@ -36,14 +44,6 @@ function matchesSpeciesFilter(post: PostItem, speciesFilter: string[]): boolean 
   if (!post.species) return false;
   if (speciesFilter.includes(post.species)) return true;
   return speciesFilter.includes('OTHER') && post.species !== 'Chó' && post.species !== 'Mèo';
-}
-
-// Areas are derived from the tail segment of each post's free-text address
-// (e.g. "Phường Cầu Kiều, Thành phố Hồ Chí Minh" -> "Thành phố Hồ Chí Minh").
-function areaOf(address?: string): string | null {
-  if (!address) return null;
-  const parts = address.split(',').map((p) => p.trim()).filter(Boolean);
-  return parts.length > 0 ? parts[parts.length - 1] : null;
 }
 
 // Compact page-number list with ellipsis for large result sets, e.g. [1, 2, '...', 5, 6, 7, '...', 12].
@@ -63,7 +63,7 @@ function getPageNumbers(current: number, total: number): (number | '...')[] {
   return result;
 }
 
-const BADGE_CLASS: Record<PostItem['type'], string> = {
+export const BADGE_CLASS: Record<PostItem['type'], string> = {
   LOST: 'badge badge-lost',
   FOUND: 'badge badge-found',
   ADOPTION: 'badge badge-adoption',
@@ -71,7 +71,7 @@ const BADGE_CLASS: Record<PostItem['type'], string> = {
   TRADE: 'badge badge-trade',
 };
 
-const BADGE_LABEL: Record<PostItem['type'], string> = {
+export const BADGE_LABEL: Record<PostItem['type'], string> = {
   LOST: 'Bị lạc',
   FOUND: 'Đã tìm thấy',
   ADOPTION: 'Cần người nuôi',
@@ -166,9 +166,9 @@ export default function PostList({
   useEffect(() => {
     fetch(PROVINCES_API_URL)
       .then((res) => res.json())
-      .then((data: { name: string }[]) => {
+      .then((data: { code: number; name: string }[]) => {
         const options = data
-          .map((p) => ({ value: p.name, label: p.name }))
+          .map((p) => ({ value: String(p.code), label: p.name }))
           .sort((a, b) => a.label.localeCompare(b.label, 'vi'));
         setAreaOptions(options);
       })
@@ -190,8 +190,7 @@ export default function PostList({
           return false;
         }
         if (areaFilter.length > 0) {
-          const area = areaOf(post.address);
-          if (!area || !areaFilter.includes(area)) return false;
+          if (post.provinceCode == null || !areaFilter.includes(String(post.provinceCode))) return false;
         }
         if (search && !`${post.title} ${post.address ?? ''}`.toLowerCase().includes(search)) {
           return false;
@@ -303,10 +302,7 @@ export default function PostList({
             </div>
 
             {view === 'map' ? (
-              <div className={styles.mapPlaceholder}>
-                <Map size={36} strokeWidth={1.5} />
-                <p>Chức năng xem trên bản đồ sắp ra mắt.</p>
-              </div>
+              <PostsMapView posts={filteredPosts} />
             ) : filteredPosts.length === 0 ? (
               <p className={styles.empty}>Không tìm thấy tin phù hợp với bộ lọc đã chọn.</p>
             ) : (

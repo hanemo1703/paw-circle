@@ -6,6 +6,8 @@ import { useRouter } from 'next/router';
 import { MapPin, Plus, X } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { namesMatch } from '../../../lib/location';
+import { PROVINCES_API_URL, Province, useRegionOptions } from '../../../lib/useRegionOptions';
 import { PostItem } from '../../../components/PostList';
 import Dropdown from '../../../components/Dropdown';
 import styles from './index.module.scss';
@@ -69,35 +71,6 @@ const GENDER_LABEL: Record<GenderOption, string> = {
 };
 
 const GENDER_DROPDOWN_OPTIONS = GENDER_OPTIONS.map((g) => ({ value: g, label: GENDER_LABEL[g] }));
-
-const PROVINCES_API_URL = 'https://provinces.open-api.vn/api/v2/p/';
-
-interface Ward {
-  code: number;
-  name: string;
-}
-
-interface Province {
-  code: number;
-  name: string;
-  wards: Ward[];
-}
-
-function normalizeLocationName(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/\b(tinh|thanh pho|tp|quan|huyen|thi xa|phuong|xa|thi tran)\b/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-function namesMatch(a: string, b: string): boolean {
-  const na = normalizeLocationName(a);
-  const nb = normalizeLocationName(b);
-  return !!na && !!nb && (na.includes(nb) || nb.includes(na));
-}
 
 interface PetRowValues {
   species: SpeciesOption;
@@ -167,9 +140,6 @@ export default function NewPostPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
   const [showMap, setShowMap] = useState(false);
-  const [provinces, setProvinces] = useState<Province[]>([]);
-  const [wards, setWards] = useState<Ward[]>([]);
-  const [regionError, setRegionError] = useState<string | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -200,28 +170,13 @@ export default function NewPostPage() {
   const latitude = watch('latitude');
   const longitude = watch('longitude');
 
+  const { provinces, wards, error: regionError } = useRegionOptions(provinceCode, wardCode, () =>
+    setValue('wardCode', ''),
+  );
+
   useEffect(() => {
     setCheckingAuth(false);
   }, []);
-
-  useEffect(() => {
-    fetch(PROVINCES_API_URL)
-      .then((res) => res.json())
-      .then((data: Province[]) => setProvinces(data))
-      .catch(() => setRegionError('Không tải được danh sách tỉnh/thành.'));
-  }, []);
-
-  useEffect(() => {
-    setValue('wardCode', '');
-    if (!provinceCode) {
-      setWards([]);
-      return;
-    }
-    fetch(`${PROVINCES_API_URL}${provinceCode}?depth=2`)
-      .then((res) => res.json())
-      .then((data: Province) => setWards(data.wards))
-      .catch(() => setRegionError('Không tải được danh sách phường/xã.'));
-  }, [provinceCode, setValue]);
 
   useEffect(() => {
     if (router.isReady) {
@@ -303,10 +258,9 @@ export default function NewPostPage() {
 
       setValue('provinceCode', String(matchedProvince.code));
       const wardsRes = await fetch(`${PROVINCES_API_URL}${matchedProvince.code}?depth=2`);
-      const wardsData = await wardsRes.json();
-      setWards(wardsData.wards);
+      const wardsData: Province = await wardsRes.json();
       const matchedWard = wardCandidate
-        ? wardsData.wards.find((w: Ward) => namesMatch(w.name, wardCandidate))
+        ? wardsData.wards.find((w) => namesMatch(w.name, wardCandidate))
         : undefined;
       setValue('wardCode', matchedWard ? String(matchedWard.code) : '');
     } catch {
@@ -361,6 +315,8 @@ export default function NewPostPage() {
           description: data.description,
           ...(uploadedUrls.length ? { images: uploadedUrls } : {}),
           ...(address ? { address } : {}),
+          ...(selectedProvince ? { provinceCode: selectedProvince.code } : {}),
+          ...(selectedWard ? { wardCode: selectedWard.code } : {}),
           ...(showPrice && data.price ? { price: Number(data.price) } : {}),
           ...(showSingleAnimal && speciesValue ? { species: speciesValue } : {}),
           ...(showSingleAnimal && data.breed ? { breed: data.breed } : {}),

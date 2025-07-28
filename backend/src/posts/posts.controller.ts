@@ -20,6 +20,7 @@ import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { QueryPostDto } from './dto/query-post.dto';
+import { GeocodeMissingDto } from './dto/geocode-missing.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { MAX_IMAGE_SIZE_BYTES, MAX_POST_IMAGES, postImagesStorage } from './images-upload.config';
 
@@ -58,6 +59,14 @@ export class PostsController {
   @Get()
   findAll(@Query() query: QueryPostDto) {
     return this.postsService.findAll(query);
+  }
+
+  // Called from map view only (not findAll) to backfill approximate pins for
+  // legacy posts that only have a text address, so ordinary list-page loads
+  // never pay for the Nominatim round-trips this triggers.
+  @HttpPost('geocode-missing')
+  geocodeMissing(@Body() dto: GeocodeMissingDto) {
+    return this.postsService.geocodeMissing(dto.ids);
   }
 
   @Get(':id')

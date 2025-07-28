@@ -6,6 +6,8 @@ import type { GetServerSideProps } from 'next';
 import { MapPin, Plus, X } from 'lucide-react';
 import { api, toAssetUrl } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { namesMatch } from '../../../lib/location';
+import { PROVINCES_API_URL, Province, useRegionOptions } from '../../../lib/useRegionOptions';
 import Dropdown from '../../../components/Dropdown';
 import styles from '../new/index.module.scss';
 
@@ -40,6 +42,8 @@ interface PostDetail {
   description: string;
   images: string[];
   address?: string;
+  provinceCode?: number;
+  wardCode?: number;
   price?: number;
   species?: string;
   breed?: string;
@@ -126,9 +130,20 @@ function petToRow(pet: AdoptionPetInfo): PetRowValues {
     color: pet.color ?? '',
     age: pet.age != null ? String(pet.age) : '',
     gender: pet.gender ?? 'UNKNOWN',
-    size: pet.size != null ? String(pet.size) : '',
+    size: pet.size != null ? pet.size.toFixed(1) : '',
     status: pet.status ?? 'PENDING',
   };
+}
+
+// Mirrors how `address` is composed on save (`[detail, ward, province].join(', ')`):
+// strips the known ward+province tail so the detail field doesn't start out
+// duplicating it. Falls back to the full address text for legacy posts that
+// predate provinceCode/wardCode, so nothing is lost.
+function defaultDetailAddress(post: PostDetail | null): string {
+  if (!post?.address) return '';
+  if (!post.provinceCode || !post.wardCode) return post.address;
+  const parts = post.address.split(',').map((p) => p.trim()).filter(Boolean);
+  return parts.slice(0, -2).join(', ');
 }
 
 interface FormValues {
@@ -142,7 +157,9 @@ interface FormValues {
   pets: PetRowValues[];
   title: string;
   description: string;
-  address: string;
+  provinceCode: string;
+  wardCode: string;
+  detailAddress: string;
   price: string;
   latitude: string;
   longitude: string;
@@ -182,13 +199,15 @@ export default function EditPostPage({ post }: Props) {
       speciesOther: speciesInfo.speciesOther,
       breed: post?.breed ?? '',
       color: post?.color ?? '',
-      size: post?.size != null ? String(post.size) : '',
+      size: post?.size != null ? post.size.toFixed(1) : '',
       gender: post?.gender ?? 'UNKNOWN',
       collarDescription: post?.collarDescription ?? '',
       pets: post?.pets && post.pets.length > 0 ? post.pets.map(petToRow) : [makeDefaultPetRow()],
       title: post?.title ?? '',
       description: post?.description ?? '',
-      address: post?.address ?? '',
+      provinceCode: post?.provinceCode != null ? String(post.provinceCode) : '',
+      wardCode: post?.wardCode != null ? String(post.wardCode) : '',
+      detailAddress: defaultDetailAddress(post),
       price: post?.price != null ? String(post.price) : '',
       latitude: post?.latitude != null ? String(post.latitude) : '',
       longitude: post?.longitude != null ? String(post.longitude) : '',
@@ -201,8 +220,14 @@ export default function EditPostPage({ post }: Props) {
   });
 
   const species = watch('species');
+  const provinceCode = watch('provinceCode');
+  const wardCode = watch('wardCode');
   const latitude = watch('latitude');
   const longitude = watch('longitude');
+
+  const { provinces, wards, error: regionError } = useRegionOptions(provinceCode, wardCode, () =>
+    setValue('wardCode', ''),
+  );
 
   useEffect(() => {
     setCheckingAuth(false);
@@ -244,8 +269,37 @@ export default function EditPostPage({ post }: Props) {
   const showSpecies = type !== 'MARKETPLACE';
   const showPetList = type === 'ADOPTION';
   const showSingleAnimal = showSpecies && !showPetList;
+  const selectedProvince = provinces.find((p) => String(p.code) === provinceCode);
+  const selectedWard = wards.find((w) => String(w.code) === wardCode);
 
   const totalImages = existingImages.length + imageFiles.length;
+
+  const reverseGeocodeAndFill = async (lat: number, lng: number) => {
+    if (provinces.length === 0) return;
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=vi`,
+      );
+      const data = await res.json();
+      const addr = data.address ?? {};
+      const provinceCandidate: string = addr.state || addr.city || addr.county || '';
+      const wardCandidate: string =
+        addr.suburb || addr.quarter || addr.village || addr.town || addr.city_district || addr.neighbourhood || '';
+
+      const matchedProvince = provinces.find((p) => namesMatch(p.name, provinceCandidate));
+      if (!matchedProvince) return;
+
+      setValue('provinceCode', String(matchedProvince.code));
+      const wardsRes = await fetch(`${PROVINCES_API_URL}${matchedProvince.code}?depth=2`);
+      const wardsData: Province = await wardsRes.json();
+      const matchedWard = wardCandidate
+        ? wardsData.wards.find((w) => namesMatch(w.name, wardCandidate))
+        : undefined;
+      setValue('wardCode', matchedWard ? String(matchedWard.code) : '');
+    } catch {
+      // Best-effort only — leave dropdowns for manual selection on any failure.
+    }
+  };
 
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? []);
@@ -295,6 +349,9 @@ export default function EditPostPage({ post }: Props) {
 
   const onSubmit = handleSubmit(async (data) => {
     const speciesValue = data.species === 'OTHER' ? data.speciesOther.trim() : SPECIES_LABEL[data.species];
+    const regionAddress =
+      selectedWard && selectedProvince ? `${selectedWard.name}, ${selectedProvince.name}` : '';
+    const address = [data.detailAddress.trim(), regionAddress].filter(Boolean).join(', ');
 
     let uploadedUrls: string[] = [];
     if (imageFiles.length > 0) {
@@ -319,7 +376,9 @@ export default function EditPostPage({ post }: Props) {
           title: data.title,
           description: data.description,
           images: [...existingImages, ...uploadedUrls],
-          address: data.address.trim(),
+          address,
+          ...(selectedProvince ? { provinceCode: selectedProvince.code } : {}),
+          ...(selectedWard ? { wardCode: selectedWard.code } : {}),
           ...(showPrice && data.price ? { price: Number(data.price) } : {}),
           ...(showSingleAnimal
             ? {
@@ -615,8 +674,49 @@ export default function EditPostPage({ post }: Props) {
         )}
 
         <div className={styles.field}>
-          <label htmlFor="address">Địa chỉ (không bắt buộc)</label>
-          <input id="address" placeholder="Khu vực, số nhà, tên đường..." {...register('address')} />
+          <label htmlFor="province">Khu vực (không bắt buộc)</label>
+          <div className={styles.regionRow}>
+            <Controller
+              name="provinceCode"
+              control={control}
+              render={({ field }) => (
+                <Dropdown
+                  id="province"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="-- Tỉnh/Thành phố --"
+                  options={provinces.map((p) => ({ value: String(p.code), label: p.name }))}
+                  clearable
+                />
+              )}
+            />
+            <Controller
+              name="wardCode"
+              control={control}
+              render={({ field }) => (
+                <Dropdown
+                  id="ward"
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={!provinceCode}
+                  placeholder="-- Phường/Xã --"
+                  options={wards.map((w) => ({ value: String(w.code), label: w.name }))}
+                  clearable
+                />
+              )}
+            />
+          </div>
+          {regionError && <p style={{ color: 'red', fontSize: 13 }}>{regionError}</p>}
+        </div>
+
+        <div className={styles.field}>
+          <label htmlFor="detailAddress">Địa chỉ cụ thể (không bắt buộc)</label>
+          <input
+            id="detailAddress"
+            placeholder="Số nhà, tên đường..."
+            maxLength={200}
+            {...register('detailAddress')}
+          />
         </div>
 
         <div className={styles.field}>
@@ -635,6 +735,7 @@ export default function EditPostPage({ post }: Props) {
               onChange={(lat, lng) => {
                 setValue('latitude', String(lat));
                 setValue('longitude', String(lng));
+                reverseGeocodeAndFill(lat, lng);
               }}
               onClear={() => {
                 setValue('latitude', '');

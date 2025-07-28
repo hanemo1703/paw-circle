@@ -25,7 +25,7 @@ export class CreateAdoptionPetDto implements AdoptionPetInfo {
   gender?: PetGender;
 
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 1 })
   size?: number;
 
   // Not settable at creation (always starts PENDING) — accepted here so update

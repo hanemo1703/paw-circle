@@ -332,7 +332,7 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
               </div>
               <div className={styles.infoItem}>
                 <span>Cân nặng</span>
-                {post.size != null ? `${post.size} kg` : '-'}
+                {post.size != null ? `${post.size.toFixed(1)} kg` : '-'}
               </div>
               <div className={styles.infoItem}>
                 <span>Giới tính</span>
@@ -369,7 +369,7 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
                         <td>{pet.color || '-'}</td>
                         <td>{pet.age ?? '-'}</td>
                         <td>{pet.gender ? GENDER_LABEL[pet.gender] : '-'}</td>
-                        <td>{pet.size ?? '-'}</td>
+                        <td>{pet.size != null ? pet.size.toFixed(1) : '-'}</td>
                         <td>
                           {isOwner ? (
                             <Dropdown

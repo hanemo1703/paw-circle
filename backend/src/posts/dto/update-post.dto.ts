@@ -3,6 +3,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -46,6 +47,14 @@ export class UpdatePostDto {
   address?: string;
 
   @IsOptional()
+  @IsInt()
+  provinceCode?: number;
+
+  @IsOptional()
+  @IsInt()
+  wardCode?: number;
+
+  @IsOptional()
   @IsNumber()
   price?: number;
 
@@ -69,7 +78,7 @@ export class UpdatePostDto {
   color?: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 1 })
   size?: number;
 
   @IsOptional()

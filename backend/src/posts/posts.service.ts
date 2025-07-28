@@ -1,10 +1,15 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { AdoptionPetStatus, Post, PostStatus, PostType } from './entities/post.entity';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { QueryPostDto } from './dto/query-post.dto';
+import { forwardGeocode } from './geocoding.util';
+
+// How many legacy posts get an approximate pin backfilled per map-view open —
+// kept small since this runs sequentially through Nominatim's ~1 req/sec limit.
+const MAX_GEOCODE_BACKFILL = 8;
 
 // Strip fields the post detail page has no business exposing about the author
 // (matches the author's own privacy toggles for phone/email visibility).
@@ -21,7 +26,7 @@ function sanitizePublicUser(user?: { password?: string; showPhonePublicly?: bool
 export class PostsService {
   constructor(@InjectRepository(Post) private postsRepo: Repository<Post>) {}
 
-  create(authorId: string, dto: CreatePostDto) {
+  async create(authorId: string, dto: CreatePostDto) {
     // For multi-pet ADOPTION posts, backfill the scalar species/breed/... fields from
     // the first pet so anything still reading those columns gets sensible data
     // (same convention as images[0] acting as the implicit thumbnail).
@@ -42,6 +47,17 @@ export class PostsService {
         size: dto.size ?? firstPet.size,
       }),
     });
+
+    // Pinning a location at creation is optional — best-effort fill an approximate
+    // pin from the address text so posts still show up on the map view.
+    if (post.address && (post.latitude == null || post.longitude == null)) {
+      const geocoded = await forwardGeocode(post.address);
+      if (geocoded) {
+        post.latitude = geocoded.latitude;
+        post.longitude = geocoded.longitude;
+      }
+    }
+
     return this.postsRepo.save(post);
   }
 
@@ -98,7 +114,35 @@ export class PostsService {
       post.status = allAdopted ? PostStatus.RESOLVED : PostStatus.OPEN;
     }
 
+    if (post.address && (post.latitude == null || post.longitude == null)) {
+      const geocoded = await forwardGeocode(post.address);
+      if (geocoded) {
+        post.latitude = geocoded.latitude;
+        post.longitude = geocoded.longitude;
+      }
+    }
+
     return this.postsRepo.save(post);
+  }
+
+  // Best-effort backfill for legacy posts that only have a text address, called
+  // from the map view (not findAll/findOne) so unrelated list-page loads never
+  // pay for Nominatim round-trips.
+  async geocodeMissing(ids: string[]) {
+    if (!ids || ids.length === 0) return [];
+
+    const posts = await this.postsRepo.find({ where: { id: In(ids) } });
+    const candidates = posts.filter((p) => p.address && (p.latitude == null || p.longitude == null));
+    const capped = candidates.slice(0, MAX_GEOCODE_BACKFILL);
+
+    const resolved: { id: string; latitude: number; longitude: number }[] = [];
+    for (const post of capped) {
+      const geocoded = await forwardGeocode(post.address as string);
+      if (!geocoded) continue;
+      await this.postsRepo.update(post.id, geocoded);
+      resolved.push({ id: post.id, ...geocoded });
+    }
+    return resolved;
   }
 
   async remove(id: string, userId: string) {
