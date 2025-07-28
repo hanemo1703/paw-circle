@@ -44,6 +44,14 @@ export default function MessageThreadPage() {
   }, [isAuthenticated, router]);
 
   useEffect(() => {
+    const { prefill } = router.query;
+    if (typeof prefill !== 'string' || !otherUserId) return;
+    setDraft(prefill);
+    router.replace(`/messages/${otherUserId}`, undefined, { shallow: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otherUserId, router.query.prefill]);
+
+  useEffect(() => {
     if (!user || !accessToken || !otherUserId) return;
     const currentUserId = user.id;
     const token = accessToken;

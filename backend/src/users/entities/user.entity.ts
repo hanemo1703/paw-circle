@@ -59,6 +59,13 @@ export class User {
   @Column({ default: false })
   showEmailPublicly: boolean;
 
+  // Single-use, short-lived token for the forgot-password flow (cleared on successful reset).
+  @Column({ type: 'varchar', nullable: true, unique: true })
+  resetPasswordToken?: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  resetPasswordExpires?: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

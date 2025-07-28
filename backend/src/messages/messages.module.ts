@@ -7,6 +7,7 @@ import { User } from '../users/entities/user.entity';
 import { MessagesService } from './messages.service';
 import { MessagesController } from './messages.controller';
 import { MessagesGateway } from './messages.gateway';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -19,9 +20,10 @@ import { MessagesGateway } from './messages.gateway';
         signOptions: { expiresIn: '7d' },
       }),
     }),
+    NotificationsModule,
   ],
   providers: [MessagesService, MessagesGateway],
   controllers: [MessagesController],
-  exports: [MessagesService],
+  exports: [MessagesService, MessagesGateway],
 })
 export class MessagesModule {}

@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth';
 import { NAV_ITEMS } from '../lib/nav';
 import { useUnreadMessages } from '../lib/useUnreadMessages';
 import UserMenu from './UserMenu';
+import NotificationsMenu from './NotificationsMenu';
 import styles from './Header.module.scss';
 
 export default function Header() {
@@ -50,6 +51,7 @@ export default function Header() {
                 <MessageCircle size={21} />
                 {unreadCount > 0 && <span className={styles.unreadBadge}>{unreadCount}</span>}
               </Link>
+              <NotificationsMenu />
               <UserMenu user={user} onLogout={handleLogout} />
             </>
           ) : (

@@ -1,0 +1,129 @@
+@import '../styles/variables';
+
+.wrapper {
+  position: relative;
+}
+
+.trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: $color-text-muted;
+  cursor: pointer;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: $color-text;
+  }
+}
+
+.unreadBadge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: $color-primary;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 340px;
+  max-height: 420px;
+  display: flex;
+  flex-direction: column;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-card;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  z-index: 20;
+  overflow: hidden;
+
+  @media (max-width: $breakpoint-tablet) {
+    width: 280px;
+  }
+}
+
+.menuHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid $color-border;
+  font-weight: 700;
+  font-size: 14px;
+  color: $color-navy;
+}
+
+.markAllBtn {
+  border: none;
+  background: none;
+  color: $color-primary;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.empty {
+  padding: 24px 14px;
+  text-align: center;
+  color: $color-text-muted;
+  font-size: 13px;
+}
+
+.list {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: $radius-sm;
+  background: none;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba($color-primary, 0.08);
+  }
+}
+
+.itemUnread {
+  background: rgba($color-primary, 0.06);
+}
+
+.itemContent {
+  font-size: 13px;
+  color: $color-text;
+  line-height: 1.4;
+}
+
+.itemTime {
+  font-size: 11px;
+  color: $color-text-muted;
+}

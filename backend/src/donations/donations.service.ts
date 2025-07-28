@@ -6,6 +6,10 @@ import { Donation } from './entities/donation.entity';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { CreateDonationDto } from './dto/create-donation.dto';
+import { User } from '../users/entities/user.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/entities/notification.entity';
+import { MessagesGateway } from '../messages/messages.gateway';
 
 // Donors need a way to actually send money: either a full bank account (all three
 // fields, so there's nothing ambiguous to transfer to) or an uploaded QR image.
@@ -38,6 +42,8 @@ export class DonationsService {
     @InjectRepository(DonationCampaign) private campaignsRepo: Repository<DonationCampaign>,
     @InjectRepository(Donation) private donationsRepo: Repository<Donation>,
     private dataSource: DataSource,
+    private notificationsService: NotificationsService,
+    private messagesGateway: MessagesGateway,
   ) {}
 
   createCampaign(creatorId: string, dto: CreateCampaignDto) {
@@ -125,7 +131,7 @@ export class DonationsService {
   // Use a transaction to keep crediting the campaign and creating the
   // donation consistent with each other.
   async donate(campaignId: string, donorId: string, dto: CreateDonationDto) {
-    return this.dataSource.transaction(async (manager) => {
+    const { donation, campaign, donor } = await this.dataSource.transaction(async (manager) => {
       const campaign = await manager.findOne(DonationCampaign, { where: { id: campaignId } });
       if (!campaign) {
         throw new NotFoundException('Không tìm thấy chiến dịch');
@@ -144,7 +150,23 @@ export class DonationsService {
       campaign.currentAmount = Number(campaign.currentAmount) + Number(dto.amount);
       await manager.save(campaign);
 
-      return donation;
+      const donor = await manager.findOne(User, { where: { id: donorId } });
+      return { donation, campaign, donor };
     });
+
+    // Best-effort notification for the campaign creator — not part of the money-moving
+    // transaction above since it isn't required to be atomic with it.
+    if (campaign.creatorId !== donorId) {
+      const donorName = donation.anonymous ? 'Một nhà hảo tâm ẩn danh' : donor?.name ?? 'Một nhà hảo tâm';
+      const notification = await this.notificationsService.create(
+        campaign.creatorId,
+        NotificationType.DONATION,
+        `${donorName} vừa ủng hộ ${Number(dto.amount).toLocaleString('vi-VN')}đ cho chiến dịch "${campaign.title}"`,
+        `/donations/${campaign.id}`,
+      );
+      this.messagesGateway.notifyNotification(campaign.creatorId, notification);
+    }
+
+    return donation;
   }
 }

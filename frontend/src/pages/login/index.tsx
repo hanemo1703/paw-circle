@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -69,6 +70,9 @@ export default function LoginPage() {
           {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
       </form>
+      <Link href="/forgot-password" className={styles.forgotLink}>
+        Quên mật khẩu?
+      </Link>
       {(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_FACEBOOK_APP_ID) && (
         <>
           <div className={styles.divider}>hoặc</div>

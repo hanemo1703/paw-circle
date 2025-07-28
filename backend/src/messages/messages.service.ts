@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { User } from '../users/entities/user.entity';
 import { MessagesGateway } from './messages.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/entities/notification.entity';
 
 const MESSAGE_SELECT = [
   'message.id',
@@ -26,6 +28,7 @@ export class MessagesService {
     @InjectRepository(Message) private messagesRepo: Repository<Message>,
     @InjectRepository(User) private usersRepo: Repository<User>,
     private messagesGateway: MessagesGateway,
+    private notificationsService: NotificationsService,
   ) {}
 
   async send(senderId: string, receiverId: string, content: string) {
@@ -49,6 +52,15 @@ export class MessagesService {
       .getOne();
 
     this.messagesGateway.notifyNewMessage(receiverId, fullMessage);
+
+    const notification = await this.notificationsService.create(
+      receiverId,
+      NotificationType.MESSAGE,
+      `${fullMessage?.sender?.name ?? 'Người dùng'} đã gửi cho bạn một tin nhắn mới`,
+      `/messages/${senderId}`,
+    );
+    this.messagesGateway.notifyNotification(receiverId, notification);
+
     return fullMessage;
   }
 

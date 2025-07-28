@@ -46,9 +46,9 @@
   margin-top: 8px;
 }
 
-.forgotLink {
+.backLink {
   display: block;
-  margin-top: 14px;
+  margin-top: 20px;
   text-align: center;
   color: $color-text-muted;
   font-size: 14px;
@@ -58,35 +58,9 @@
   }
 }
 
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 20px 0;
-  color: $color-text-muted;
-  font-size: 13px;
-
-  &::before,
-  &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: $color-border;
-  }
-}
-
-.socialButtons {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.googleWrapper {
-  display: flex;
-  justify-content: center;
-}
-
-.facebookWrapper {
-  display: flex;
-  justify-content: center;
+.successBox {
+  text-align: center;
+  color: $color-text;
+  font-size: 15px;
+  line-height: 1.6;
 }

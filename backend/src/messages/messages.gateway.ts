@@ -40,4 +40,8 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   notifyRead(userId: string, otherUserId: string) {
     this.server.to(`user:${userId}`).emit('message:read', { otherUserId });
   }
+
+  notifyNotification(recipientId: string, notification: unknown) {
+    this.server.to(`user:${recipientId}`).emit('notification:new', notification);
+  }
 }

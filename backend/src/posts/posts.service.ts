@@ -6,6 +6,17 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { QueryPostDto } from './dto/query-post.dto';
 
+// Strip fields the post detail page has no business exposing about the author
+// (matches the author's own privacy toggles for phone/email visibility).
+function sanitizePublicUser(user?: { password?: string; showPhonePublicly?: boolean; showEmailPublicly?: boolean; phone?: string; email?: string }) {
+  if (!user) return;
+  delete user.password;
+  if (!user.showPhonePublicly) delete user.phone;
+  if (!user.showEmailPublicly) delete user.email;
+  delete user.showPhonePublicly;
+  delete user.showEmailPublicly;
+}
+
 @Injectable()
 export class PostsService {
   constructor(@InjectRepository(Post) private postsRepo: Repository<Post>) {}
@@ -50,13 +61,7 @@ export class PostsService {
     if (!post) {
       throw new NotFoundException('Không tìm thấy bài đăng');
     }
-    if (post.author) {
-      delete (post.author as any).password;
-      if (!post.author.showPhonePublicly) delete (post.author as any).phone;
-      if (!post.author.showEmailPublicly) delete (post.author as any).email;
-      delete (post.author as any).showPhonePublicly;
-      delete (post.author as any).showEmailPublicly;
-    }
+    sanitizePublicUser(post.author);
     return post;
   }
 

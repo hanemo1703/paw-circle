@@ -188,8 +188,15 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
     if (post.author) router.push(`/messages/${post.author.id}`);
   };
 
-  const handleMessageComingSoon = () => {
-    setToast({ message: 'Tính năng nhắn tin sắp ra mắt.', type: 'success' });
+  const handleClaimPet = () => {
+    if (!post.author) return;
+    if (!accessToken) {
+      router.push('/login');
+      return;
+    }
+    router.push(
+      `/messages/${post.author.id}?prefill=${encodeURIComponent('Mình nghĩ đây là bé của mình. Bạn cho mình xin thêm thông tin để xác nhận nhé!')}`,
+    );
   };
 
   const handleShare = async () => {
@@ -414,7 +421,7 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
                     <MessageCircle size={16} /> Nhắn tin cho người đăng
                   </button>
                   {post.type === 'FOUND' && (
-                    <button type="button" className="btn btn-outline" onClick={handleMessageComingSoon}>
+                    <button type="button" className="btn btn-outline" onClick={handleClaimPet}>
                       Mình nghĩ đây là bé của mình
                     </button>
                   )}
