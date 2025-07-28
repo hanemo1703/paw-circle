@@ -14,5 +14,23 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
 
+  # Isolated Postgres instance for Playwright E2E runs (frontend/e2e) — kept
+  # separate from the dev `postgres` service so test data never mixes with
+  # real dev data. See frontend/e2e/README.md for how to point a backend/
+  # frontend instance at this container.
+  postgres-e2e:
+    image: postgres:16-alpine
+    container_name: petconnect-postgres-e2e
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: petconnect
+      POSTGRES_PASSWORD: petconnect
+      POSTGRES_DB: petconnect
+    ports:
+      - "5438:5432"
+    volumes:
+      - pg_data_e2e:/var/lib/postgresql/data
+
 volumes:
   pg_data:
+  pg_data_e2e:
