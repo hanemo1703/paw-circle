@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { api, toAssetUrl } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { connectSocket } from '../../lib/socket';
 import { formatRelativeTime } from '../../lib/format';
 import styles from './index.module.scss';
+
+const PAGE_SIZE = 20;
 
 interface Conversation {
   otherUser: { id: string; name: string; avatarUrl?: string };
@@ -13,10 +16,29 @@ interface Conversation {
   unreadCount: number;
 }
 
+// Compact page-number list with ellipsis for large result sets, e.g. [1, 2, '...', 5, 6, 7, '...', 12].
+function getPageNumbers(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const keep = new Set([1, 2, total - 1, total, current - 1, current, current + 1]);
+  const sorted = Array.from(keep)
+    .filter((p) => p >= 1 && p <= total)
+    .sort((a, b) => a - b);
+  const result: (number | '...')[] = [];
+  let prev = 0;
+  for (const p of sorted) {
+    if (prev && p - prev > 1) result.push('...');
+    result.push(p);
+    prev = p;
+  }
+  return result;
+}
+
 export default function MessagesInboxPage() {
   const router = useRouter();
   const { user, accessToken, isAuthenticated } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,8 +53,14 @@ export default function MessagesInboxPage() {
     let cancelled = false;
     async function refresh() {
       try {
-        const data: Conversation[] = await api.get('/messages', accessToken ?? undefined);
-        if (!cancelled) setConversations(data);
+        const res: { data: Conversation[]; total: number } = await api.get(
+          `/messages?page=${page}&limit=${PAGE_SIZE}`,
+          accessToken ?? undefined,
+        );
+        if (!cancelled) {
+          setConversations(res.data);
+          setTotal(res.total);
+        }
       } catch {
         // Best-effort — list just keeps its last known state on transient failures
       } finally {
@@ -50,7 +78,10 @@ export default function MessagesInboxPage() {
       socket.off('message:new', refresh);
       socket.off('message:read', refresh);
     };
-  }, [user, accessToken]);
+  }, [user, accessToken, page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
 
   if (!user) {
     return null;
@@ -100,6 +131,45 @@ export default function MessagesInboxPage() {
               </Link>
             );
           })}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className={styles.pagination}>
+          <button
+            type="button"
+            className={styles.pageBtn}
+            disabled={currentPage === 1}
+            onClick={() => setPage(currentPage - 1)}
+            aria-label="Trang trước"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          {getPageNumbers(currentPage, totalPages).map((p, i) =>
+            p === '...' ? (
+              <span key={`ellipsis-${i}`} className={styles.pageEllipsis}>
+                …
+              </span>
+            ) : (
+              <button
+                key={p}
+                type="button"
+                className={`${styles.pageBtn} ${p === currentPage ? styles.pageBtnActive : ''}`}
+                onClick={() => setPage(p)}
+              >
+                {p}
+              </button>
+            ),
+          )}
+          <button
+            type="button"
+            className={styles.pageBtn}
+            disabled={currentPage === totalPages}
+            onClick={() => setPage(currentPage + 1)}
+            aria-label="Trang sau"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
       )}
     </div>

@@ -7,9 +7,10 @@ import Toast, { ToastType } from '../../components/Toast';
 
 interface Props {
   posts: PostItem[];
+  total: number;
 }
 
-export default function MarketplacePage({ posts }: Props) {
+export default function MarketplacePage({ posts, total }: Props) {
   const router = useRouter();
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
@@ -29,7 +30,9 @@ export default function MarketplacePage({ posts }: Props) {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <PostList
         title="Cho / trao đổi đồ dùng"
-        posts={posts}
+        type="SUPPLY"
+        initialPosts={posts}
+        initialTotal={total}
         emptyText="Chưa có đồ dùng nào được đăng. Hãy chia sẻ đồ cũ cho bé khác nhé!"
         newPostType="SUPPLY"
       />
@@ -39,11 +42,14 @@ export default function MarketplacePage({ posts }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   let posts: PostItem[] = [];
+  let total = 0;
   try {
-    posts = await api.get('/posts?type=SUPPLY');
+    const res = await api.get('/posts?type=SUPPLY&statusCombos=SUPPLY:OPEN&page=1&limit=6');
+    posts = res.data;
+    total = res.total;
   } catch {
     // Backend not running — still render the page with an empty list
   }
 
-  return { props: { posts } };
+  return { props: { posts, total } };
 };

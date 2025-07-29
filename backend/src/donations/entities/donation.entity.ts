@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   ManyToOne,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { DonationCampaign } from './donation-campaign.entity';
@@ -27,12 +28,14 @@ export class Donation {
   @Column({ nullable: true })
   proofImageUrl?: string;
 
+  @Index()
   @Column()
   donorId: string;
 
   @ManyToOne(() => User, (user) => user.donations)
   donor: User;
 
+  @Index()
   @Column()
   campaignId: string;
 

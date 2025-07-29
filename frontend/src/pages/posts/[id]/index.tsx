@@ -442,8 +442,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     let authorPostCount = 0;
     if (post?.author?.id) {
       try {
-        const authorPosts = await api.get(`/posts?authorId=${post.author.id}`);
-        authorPostCount = authorPosts.length;
+        const authorPosts = await api.get(`/posts?authorId=${post.author.id}&limit=1`);
+        authorPostCount = authorPosts.total;
       } catch {
         // Best-effort only — sidebar just shows 0 posts if this fails
       }

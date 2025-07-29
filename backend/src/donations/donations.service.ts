@@ -6,6 +6,7 @@ import { Donation } from './entities/donation.entity';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { CreateDonationDto } from './dto/create-donation.dto';
+import { QueryCampaignDto } from './dto/query-campaign.dto';
 import { User } from '../users/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/entities/notification.entity';
@@ -56,8 +57,53 @@ export class DonationsService {
     return this.campaignsRepo.save(campaign);
   }
 
-  findAllCampaigns() {
-    return this.campaignsRepo.find({ order: { createdAt: 'DESC' } });
+  async findAllCampaigns(query: QueryCampaignDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 6;
+
+    const qb = this.campaignsRepo.createQueryBuilder('campaign');
+
+    if (query.status) {
+      const statuses = query.status
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (statuses.length > 0) {
+        qb.andWhere('campaign.status IN (:...statuses)', { statuses });
+      }
+    }
+
+    if (query.category) {
+      const categories = query.category
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean);
+      if (categories.length > 0) {
+        qb.andWhere('campaign.category IN (:...categories)', { categories });
+      }
+    }
+
+    if (query.search) {
+      qb.andWhere('campaign.title ILIKE :search', { search: `%${query.search}%` });
+    }
+
+    if (query.sort === 'deadline') {
+      // NULLS LAST so campaigns without a deadline sink to the bottom instead of
+      // sorting first (Postgres defaults NULLS to sort last on ASC, but be explicit).
+      qb.orderBy('campaign.deadline', 'ASC', 'NULLS LAST');
+    } else if (query.sort === 'progress') {
+      qb.addSelect(
+        'CASE WHEN campaign.targetAmount IS NULL OR campaign.targetAmount = 0 THEN NULL ELSE campaign.currentAmount / campaign.targetAmount END',
+        'progress',
+      ).orderBy('progress', 'DESC', 'NULLS LAST');
+    } else {
+      qb.orderBy('campaign.createdAt', 'DESC');
+    }
+
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total };
   }
 
   async findCampaign(id: string) {

@@ -7,6 +7,19 @@ import { MessagesGateway } from './messages.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/entities/notification.entity';
 
+interface InboxRow {
+  senderId: string;
+  receiverId: string;
+  content: string;
+  createdAt: Date;
+  sender_id: string;
+  sender_name: string;
+  sender_avatar_url: string | null;
+  receiver_id: string;
+  receiver_name: string;
+  receiver_avatar_url: string | null;
+}
+
 const MESSAGE_SELECT = [
   'message.id',
   'message.content',
@@ -64,9 +77,11 @@ export class MessagesService {
     return fullMessage;
   }
 
-  // Get the full conversation between two users, ordered by time
-  async conversation(userId: string, otherUserId: string) {
-    return this.messagesRepo
+  // Keyset-paginated conversation between two users — the most recent `limit` messages
+  // by default, or the batch immediately before `before` when scrolling up for history.
+  // Returned oldest-first (render order) regardless of which page was fetched.
+  async conversation(userId: string, otherUserId: string, before?: string, limit = 50) {
+    const qb = this.messagesRepo
       .createQueryBuilder('message')
       .leftJoin('message.sender', 'sender')
       .leftJoin('message.receiver', 'receiver')
@@ -74,53 +89,89 @@ export class MessagesService {
       .where(
         '(message.senderId = :userId AND message.receiverId = :otherUserId) OR (message.senderId = :otherUserId AND message.receiverId = :userId)',
         { userId, otherUserId },
-      )
-      .orderBy('message.createdAt', 'ASC')
-      .getMany();
-  }
+      );
 
-  // One row per counterpart, latest message first, with unread count
-  async inbox(userId: string) {
-    const messages = await this.messagesRepo
-      .createQueryBuilder('message')
-      .leftJoin('message.sender', 'sender')
-      .leftJoin('message.receiver', 'receiver')
-      .select(MESSAGE_SELECT)
-      .where('message.senderId = :userId OR message.receiverId = :userId', { userId })
-      .orderBy('message.createdAt', 'DESC')
-      .getMany();
-
-    const conversations: {
-      otherUser: { id: string; name: string; avatarUrl?: string };
-      lastMessage: { content: string; createdAt: Date; senderId: string };
-      unreadCount: number;
-    }[] = [];
-    const indexByOtherUserId = new Map<string, number>();
-
-    for (const message of messages) {
-      const isIncoming = message.receiverId === userId;
-      const otherUser = isIncoming ? message.sender : message.receiver;
-
-      let index = indexByOtherUserId.get(otherUser.id);
-      if (index === undefined) {
-        index = conversations.length;
-        indexByOtherUserId.set(otherUser.id, index);
-        conversations.push({
-          otherUser: { id: otherUser.id, name: otherUser.name, avatarUrl: otherUser.avatarUrl },
-          lastMessage: {
-            content: message.content,
-            createdAt: message.createdAt,
-            senderId: message.senderId,
-          },
-          unreadCount: 0,
-        });
-      }
-      if (isIncoming && !message.isRead) {
-        conversations[index].unreadCount += 1;
-      }
+    if (before) {
+      qb.andWhere('message.createdAt < :before', { before });
     }
 
-    return conversations;
+    qb.orderBy('message.createdAt', 'DESC').take(limit + 1);
+
+    const rows = await qb.getMany();
+    const hasMore = rows.length > limit;
+    const data = rows.slice(0, limit).reverse();
+
+    return { data, hasMore };
+  }
+
+  // One row per counterpart (latest message only), with unread count — built via
+  // DISTINCT ON in SQL instead of grouping the full message history in app code,
+  // since a user's inbox otherwise grows unbounded with their total message count.
+  async inbox(userId: string, page = 1, limit = 20) {
+    const offset = (page - 1) * limit;
+
+    const rows: InboxRow[] = await this.messagesRepo.query(
+      `
+      SELECT
+        m.content, m."senderId", m."receiverId", m."createdAt",
+        s.id AS sender_id, s.name AS sender_name, s."avatarUrl" AS sender_avatar_url,
+        r.id AS receiver_id, r.name AS receiver_name, r."avatarUrl" AS receiver_avatar_url
+      FROM (
+        SELECT DISTINCT ON (counterpart_id) *,
+          CASE WHEN "senderId" = $1 THEN "receiverId" ELSE "senderId" END AS counterpart_id
+        FROM messages
+        WHERE "senderId" = $1 OR "receiverId" = $1
+        ORDER BY counterpart_id, "createdAt" DESC
+      ) m
+      JOIN users s ON s.id = m."senderId"
+      JOIN users r ON r.id = m."receiverId"
+      ORDER BY m."createdAt" DESC
+      LIMIT $2 OFFSET $3
+      `,
+      [userId, limit, offset],
+    );
+
+    const [{ count }] = await this.messagesRepo.query(
+      `
+      SELECT COUNT(*) AS count FROM (
+        SELECT DISTINCT CASE WHEN "senderId" = $1 THEN "receiverId" ELSE "senderId" END AS counterpart_id
+        FROM messages
+        WHERE "senderId" = $1 OR "receiverId" = $1
+      ) t
+      `,
+      [userId],
+    );
+
+    // Unread counts span the whole conversation history (not just the latest message),
+    // but are grouped by counterpart — bounded by how many people messaged this user,
+    // not by total message count.
+    const unreadRows: { senderId: string; count: string }[] = await this.messagesRepo.query(
+      `SELECT "senderId", COUNT(*) AS count FROM messages WHERE "receiverId" = $1 AND "isRead" = false GROUP BY "senderId"`,
+      [userId],
+    );
+    const unreadByCounterpart = new Map(unreadRows.map((r) => [r.senderId, Number(r.count)]));
+
+    const data = rows.map((row) => {
+      const isIncoming = row.receiverId === userId;
+      const otherUserId = isIncoming ? row.senderId : row.receiverId;
+      return {
+        otherUser: isIncoming
+          ? { id: row.sender_id, name: row.sender_name, avatarUrl: row.sender_avatar_url ?? undefined }
+          : { id: row.receiver_id, name: row.receiver_name, avatarUrl: row.receiver_avatar_url ?? undefined },
+        lastMessage: {
+          content: row.content,
+          createdAt: row.createdAt,
+          senderId: row.senderId,
+        },
+        unreadCount: unreadByCounterpart.get(otherUserId) ?? 0,
+      };
+    });
+
+    return { data, total: Number(count) };
+  }
+
+  unreadCount(userId: string) {
+    return this.messagesRepo.count({ where: { receiverId: userId, isRead: false } });
   }
 
   async markRead(userId: string, otherUserId: string) {

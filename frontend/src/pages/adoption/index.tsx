@@ -7,9 +7,10 @@ import Toast, { ToastType } from '../../components/Toast';
 
 interface Props {
   posts: PostItem[];
+  total: number;
 }
 
-export default function AdoptionPage({ posts }: Props) {
+export default function AdoptionPage({ posts, total }: Props) {
   const router = useRouter();
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
@@ -29,7 +30,9 @@ export default function AdoptionPage({ posts }: Props) {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <PostList
         title="Tìm người nhận nuôi"
-        posts={posts}
+        type="ADOPTION"
+        initialPosts={posts}
+        initialTotal={total}
         emptyText="Chưa có bé nào cần tìm nhà mới. Hãy đăng tin đầu tiên!"
         newPostType="ADOPTION"
       />
@@ -39,11 +42,14 @@ export default function AdoptionPage({ posts }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   let posts: PostItem[] = [];
+  let total = 0;
   try {
-    posts = await api.get('/posts?type=ADOPTION');
+    const res = await api.get('/posts?type=ADOPTION&statusCombos=ADOPTION:OPEN&page=1&limit=6');
+    posts = res.data;
+    total = res.total;
   } catch {
     // Backend not running — still render the page with an empty list
   }
 
-  return { props: { posts } };
+  return { props: { posts, total } };
 };

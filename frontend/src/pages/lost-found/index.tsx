@@ -7,9 +7,10 @@ import Toast, { ToastType } from '../../components/Toast';
 
 interface Props {
   posts: PostItem[];
+  total: number;
 }
 
-export default function LostFoundPage({ posts }: Props) {
+export default function LostFoundPage({ posts, total }: Props) {
   const router = useRouter();
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
@@ -29,7 +30,9 @@ export default function LostFoundPage({ posts }: Props) {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <PostList
         title="Tìm chó mèo lạc"
-        posts={posts}
+        type="LOST"
+        initialPosts={posts}
+        initialTotal={total}
         emptyText="Chưa có tin báo lạc nào. Hãy là người đầu tiên đăng tin!"
         newPostType="LOST"
       />
@@ -39,12 +42,15 @@ export default function LostFoundPage({ posts }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   let posts: PostItem[] = [];
+  let total = 0;
 
   try {
-    posts = await api.get('/posts?type=LOST');
+    const res = await api.get('/posts?type=LOST&statusCombos=LOST:OPEN&page=1&limit=6');
+    posts = res.data;
+    total = res.total;
   } catch {
     // Backend not running — still render the page with an empty list
   }
 
-  return { props: { posts } };
+  return { props: { posts, total } };
 };
