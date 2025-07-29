@@ -1,12 +1,13 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GetServerSideProps } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { CheckCircle2, MessageCircle, Pencil, Phone, Plus, Share2, X, XCircle } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, MessageCircle, Pencil, Phone, Plus, Share2, X, XCircle } from 'lucide-react';
 import { api, toAssetUrl } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { formatRelativeTime } from '../../../lib/format';
-import Toast, { ToastType } from '../../../components/Toast';
+import { useToast } from '../../../lib/useToast';
+import { useConfirmDialog } from '../../../lib/useConfirmDialog';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import styles from './index.module.scss';
 
@@ -54,8 +55,26 @@ interface Campaign {
   creatorId: string;
   creator?: Creator;
   creatorCampaignCount?: number;
-  donations: DonationItem[];
   createdAt: string;
+}
+
+const DONATIONS_PAGE_SIZE = 15;
+
+// Compact page-number list with ellipsis for large result sets, e.g. [1, 2, '...', 5, 6, 7, '...', 12].
+function getPageNumbers(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const keep = new Set([1, 2, total - 1, total, current - 1, current, current + 1]);
+  const sorted = Array.from(keep)
+    .filter((p) => p >= 1 && p <= total)
+    .sort((a, b) => a - b);
+  const result: (number | '...')[] = [];
+  let prev = 0;
+  for (const p of sorted) {
+    if (prev && p - prev > 1) result.push('...');
+    result.push(p);
+    prev = p;
+  }
+  return result;
 }
 
 const STATUS_LABEL: Record<CampaignStatus, string> = {
@@ -104,12 +123,21 @@ function remainingDaysLabel(deadline?: string): string | null {
 
 interface Props {
   campaign: Campaign | null;
+  initialDonations: DonationItem[];
+  initialDonationsTotal: number;
 }
 
-export default function CampaignDetailPage({ campaign: initialCampaign }: Props) {
+export default function CampaignDetailPage({
+  campaign: initialCampaign,
+  initialDonations,
+  initialDonationsTotal,
+}: Props) {
   const router = useRouter();
   const { user, isAuthenticated, accessToken } = useAuth();
   const [campaign, setCampaign] = useState(initialCampaign);
+  const [donations, setDonations] = useState(initialDonations);
+  const [donationsTotal, setDonationsTotal] = useState(initialDonationsTotal);
+  const [donationsPage, setDonationsPage] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [showContact, setShowContact] = useState(false);
   const [donateOpen, setDonateOpen] = useState(false);
@@ -120,10 +148,32 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
   const [proofImagePreview, setProofImagePreview] = useState<string | null>(null);
   const [donating, setDonating] = useState(false);
   const [donateError, setDonateError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
-  const [statusAction, setStatusAction] = useState<StatusAction | null>(null);
-  const [statusUpdating, setStatusUpdating] = useState(false);
+  const { showToast, toastNode } = useToast();
+  const statusDialog = useConfirmDialog<StatusAction>();
   const proofFileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!campaign) return;
+    let cancelled = false;
+    async function loadDonations() {
+      try {
+        const res: { data: DonationItem[]; total: number } = await api.get(
+          `/donations/campaigns/${campaign!.id}/donations?page=${donationsPage}&limit=${DONATIONS_PAGE_SIZE}`,
+        );
+        if (!cancelled) {
+          setDonations(res.data);
+          setDonationsTotal(res.total);
+        }
+      } catch {
+        // Transient fetch failure — keep showing the previous page
+      }
+    }
+    loadDonations();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaign?.id, donationsPage]);
 
   if (!campaign) {
     return (
@@ -137,7 +187,8 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
   const isOwner = !!user && user.id === campaign.creatorId;
   const remaining = remainingDaysLabel(campaign.deadline);
   const qrUrl = toAssetUrl(campaign.qrImageUrl);
-  const recentDonations = [...campaign.donations].slice(0, 15);
+  const donationsTotalPages = Math.max(1, Math.ceil(donationsTotal / DONATIONS_PAGE_SIZE));
+  const donationsCurrentPage = Math.min(donationsPage, donationsTotalPages);
 
   const openDonate = () => {
     if (!isAuthenticated) {
@@ -197,26 +248,22 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
         { amount, message: donateMessage.trim() || undefined, anonymous: donateAnonymous, proofImageUrl },
         accessToken || undefined,
       );
-      setCampaign((prev) =>
-        prev
-          ? {
-              ...prev,
-              currentAmount: Number(prev.currentAmount) + amount,
-              donations: [
-                {
-                  ...donation,
-                  donor: donateAnonymous ? undefined : user ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl } : undefined,
-                },
-                ...prev.donations,
-              ],
-            }
-          : prev,
-      );
+      setCampaign((prev) => (prev ? { ...prev, currentAmount: Number(prev.currentAmount) + amount } : prev));
+      setDonationsTotal((prev) => prev + 1);
+      if (donationsPage === 1) {
+        setDonations((prev) => [
+          {
+            ...donation,
+            donor: donateAnonymous ? undefined : user ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl } : undefined,
+          },
+          ...prev,
+        ]);
+      }
       if (proofImagePreview) URL.revokeObjectURL(proofImagePreview);
       setProofImageFile(null);
       setProofImagePreview(null);
       setDonateOpen(false);
-      setToast({ message: 'Cảm ơn bạn đã ủng hộ chiến dịch!', type: 'success' });
+      showToast('Cảm ơn bạn đã ủng hộ chiến dịch!');
     } catch (err: any) {
       setDonateError(err.message || 'Ghi nhận ủng hộ thất bại.');
     } finally {
@@ -225,8 +272,9 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
   };
 
   const confirmStatusChange = async () => {
+    const statusAction = statusDialog.pending;
     if (!statusAction) return;
-    setStatusUpdating(true);
+    statusDialog.setSubmitting(true);
     try {
       const updated = await api.patch(
         `/donations/campaigns/${campaign.id}`,
@@ -234,15 +282,11 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
         accessToken || undefined,
       );
       setCampaign((prev) => (prev ? { ...prev, status: updated.status } : prev));
-      setToast({
-        message: statusAction === 'COMPLETED' ? 'Đã đánh dấu chiến dịch hoàn thành.' : 'Đã đóng chiến dịch.',
-        type: 'success',
-      });
-      setStatusAction(null);
+      showToast(statusAction === 'COMPLETED' ? 'Đã đánh dấu chiến dịch hoàn thành.' : 'Đã đóng chiến dịch.');
+      statusDialog.close();
     } catch (err: any) {
-      setToast({ message: err.message || 'Cập nhật trạng thái thất bại.', type: 'error' });
-    } finally {
-      setStatusUpdating(false);
+      showToast(err.message || 'Cập nhật trạng thái thất bại.', 'error');
+      statusDialog.setSubmitting(false);
     }
   };
 
@@ -262,7 +306,7 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
         return;
       }
       await navigator.clipboard.writeText(url);
-      setToast({ message: 'Đã sao chép liên kết chiến dịch!', type: 'success' });
+      showToast('Đã sao chép liên kết chiến dịch!');
     } catch {
       // User cancelled the share sheet or clipboard write failed — no-op
     }
@@ -270,17 +314,17 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
 
   return (
     <div className={`container ${styles.wrapper}`}>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toastNode}
 
-      {statusAction && (
+      {statusDialog.pending && (
         <ConfirmDialog
-          title={STATUS_ACTION_COPY[statusAction].title}
-          message={STATUS_ACTION_COPY[statusAction].message}
-          confirmText={STATUS_ACTION_COPY[statusAction].confirmText}
-          danger={STATUS_ACTION_COPY[statusAction].danger}
-          confirming={statusUpdating}
+          title={STATUS_ACTION_COPY[statusDialog.pending].title}
+          message={STATUS_ACTION_COPY[statusDialog.pending].message}
+          confirmText={STATUS_ACTION_COPY[statusDialog.pending].confirmText}
+          danger={STATUS_ACTION_COPY[statusDialog.pending].danger}
+          confirming={statusDialog.submitting}
           onConfirm={confirmStatusChange}
-          onCancel={() => !statusUpdating && setStatusAction(null)}
+          onCancel={() => !statusDialog.submitting && statusDialog.close()}
         />
       )}
 
@@ -415,11 +459,11 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
             <p className={styles.description}>{campaign.description}</p>
           </div>
 
-          {recentDonations.length > 0 && (
+          {donations.length > 0 && (
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Người đã ủng hộ gần đây</h3>
+              <h3 className={styles.sectionTitle}>Người đã ủng hộ</h3>
               <div className={styles.donorCard}>
-                {recentDonations.map((d) => (
+                {donations.map((d) => (
                   <div key={d.id} className={styles.donorRow}>
                     <img className={styles.donorAvatar} src={toAssetUrl(d.donor?.avatarUrl) || '/logo.jpg'} alt="" />
                     <div className={styles.donorName}>
@@ -429,6 +473,45 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
                   </div>
                 ))}
               </div>
+
+              {donationsTotalPages > 1 && (
+                <div className={styles.pagination}>
+                  <button
+                    type="button"
+                    className={styles.pageBtn}
+                    disabled={donationsCurrentPage === 1}
+                    onClick={() => setDonationsPage(donationsCurrentPage - 1)}
+                    aria-label="Trang trước"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  {getPageNumbers(donationsCurrentPage, donationsTotalPages).map((p, i) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${i}`} className={styles.pageEllipsis}>
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={p}
+                        type="button"
+                        className={`${styles.pageBtn} ${p === donationsCurrentPage ? styles.pageBtnActive : ''}`}
+                        onClick={() => setDonationsPage(p)}
+                      >
+                        {p}
+                      </button>
+                    ),
+                  )}
+                  <button
+                    type="button"
+                    className={styles.pageBtn}
+                    disabled={donationsCurrentPage === donationsTotalPages}
+                    onClick={() => setDonationsPage(donationsCurrentPage + 1)}
+                    aria-label="Trang sau"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -436,7 +519,7 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
         <aside className={styles.sidebar}>
           <div className={styles.card}>
             <div>
-              <p className={styles.donorCountTitle}>{campaign.donations.length} người đã ủng hộ</p>
+              <p className={styles.donorCountTitle}>{donationsTotal} người đã ủng hộ</p>
               <p className={styles.privacyNote}>
                 Số tiền ủng hộ không được công khai để bảo vệ quyền riêng tư của người đóng góp.
               </p>
@@ -541,7 +624,7 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
                     type="button"
                     className={styles.sidebarLink}
                     style={{ border: 'none', color: 'inherit' }}
-                    onClick={() => setStatusAction('COMPLETED')}
+                    onClick={() => statusDialog.open('COMPLETED')}
                   >
                     <CheckCircle2 size={16} /> Đánh dấu hoàn thành
                   </button>
@@ -549,7 +632,7 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
                     type="button"
                     className={styles.sidebarLink}
                     style={{ border: 'none', color: 'inherit' }}
-                    onClick={() => setStatusAction('CANCELLED')}
+                    onClick={() => statusDialog.open('CANCELLED')}
                   >
                     <XCircle size={16} /> Đóng chiến dịch
                   </button>
@@ -580,9 +663,12 @@ export default function CampaignDetailPage({ campaign: initialCampaign }: Props)
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const id = ctx.params?.id as string;
   try {
-    const campaign = await api.get(`/donations/campaigns/${id}`);
-    return { props: { campaign } };
+    const [campaign, donations] = await Promise.all([
+      api.get(`/donations/campaigns/${id}`),
+      api.get(`/donations/campaigns/${id}/donations?page=1&limit=${DONATIONS_PAGE_SIZE}`),
+    ]);
+    return { props: { campaign, initialDonations: donations.data, initialDonationsTotal: donations.total } };
   } catch {
-    return { props: { campaign: null } };
+    return { props: { campaign: null, initialDonations: [], initialDonationsTotal: 0 } };
   }
 };

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import Toast, { ToastType } from '../../components/Toast';
+import { useToast } from '../../lib/useToast';
 import AvatarUploader from '../../components/AvatarUploader';
 import styles from './edit.module.scss';
 
@@ -17,7 +17,7 @@ export default function EditProfilePage() {
   const [showEmailPublicly, setShowEmailPublicly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const { showToast, toastNode } = useToast();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -47,7 +47,7 @@ export default function EditProfilePage() {
         accessToken || undefined,
       );
       updateUser(updated);
-      setToast({ message: 'Cập nhật hồ sơ thành công!', type: 'success' });
+      showToast('Cập nhật hồ sơ thành công!');
       setTimeout(() => router.push('/profile'), 1200);
     } catch (err: any) {
       setError(err.message);
@@ -62,7 +62,7 @@ export default function EditProfilePage() {
 
   return (
     <div className={`container ${styles.wrapper}`}>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toastNode}
       <div className={styles.backRow}>
         <Link href="/profile" className={styles.backLink}>
           ‹ Quay lại hồ sơ

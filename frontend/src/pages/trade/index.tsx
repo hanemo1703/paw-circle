@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import type { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import { api } from '../../lib/api';
 import PostList, { PostItem } from '../../components/PostList';
-import Toast, { ToastType } from '../../components/Toast';
+import { useToast } from '../../lib/useToast';
 
 interface Props {
   posts: PostItem[];
@@ -12,22 +12,22 @@ interface Props {
 
 export default function TradePage({ posts, total }: Props) {
   const router = useRouter();
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const { showToast, toastNode } = useToast();
 
   useEffect(() => {
     if (!router.isReady) return;
     if (router.query.created === '1') {
-      setToast({ message: 'Đăng tin thành công!', type: 'success' });
+      showToast('Đăng tin thành công!');
       router.replace('/trade', undefined, { shallow: true });
     } else if (router.query.deleted === '1') {
-      setToast({ message: 'Đã xóa bài đăng.', type: 'success' });
+      showToast('Đã xóa bài đăng.');
       router.replace('/trade', undefined, { shallow: true });
     }
   }, [router.isReady, router.query.created, router.query.deleted]);
 
   return (
     <>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toastNode}
       <PostList
         title="Mua bán thú cưng"
         type="TRADE"

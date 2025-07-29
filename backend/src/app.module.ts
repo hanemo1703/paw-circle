@@ -37,6 +37,9 @@ import { NotificationsModule } from './notifications/notifications.module';
         // Chi dung synchronize=true khi phat trien local. Khi len production
         // hay chuyen sang dung migration (yarn migration:run).
         synchronize: true,
+        // Logs any query slower than this threshold via TypeORM's default logger,
+        // so slow queries surface in the console instead of only being noticed in prod.
+        maxQueryExecutionTime: config.get<number>('DB_SLOW_QUERY_MS', 200),
       }),
     }),
     AuthModule,

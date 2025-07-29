@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { api } from '../../lib/api';
-import Toast, { ToastType } from '../../components/Toast';
+import { useToast } from '../../lib/useToast';
 import GoogleAuthButton from '../../components/GoogleAuthButton';
 import FacebookAuthButton from '../../components/FacebookAuthButton';
 import styles from './index.module.scss';
@@ -13,7 +13,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const { showToast, toastNode } = useToast();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +31,7 @@ export default function RegisterPage() {
 
   return (
     <div className={styles.wrapper}>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toastNode}
       <h1 className={styles.title}>Tạo tài khoản</h1>
       <form onSubmit={handleSubmit}>
         <div className={styles.field}>
@@ -72,7 +72,7 @@ export default function RegisterPage() {
               <div className={styles.googleWrapper}>
                 <GoogleAuthButton
                   onSuccess={() => {
-                    setToast({ message: 'Đăng nhập thành công!', type: 'success' });
+                    showToast('Đăng nhập thành công!');
                     setTimeout(() => router.push('/'), 1200);
                   }}
                   onError={(message) => setError(message)}
@@ -83,7 +83,7 @@ export default function RegisterPage() {
               <div className={styles.facebookWrapper}>
                 <FacebookAuthButton
                   onSuccess={() => {
-                    setToast({ message: 'Đăng nhập thành công!', type: 'success' });
+                    showToast('Đăng nhập thành công!');
                     setTimeout(() => router.push('/'), 1200);
                   }}
                   onError={(message) => setError(message)}

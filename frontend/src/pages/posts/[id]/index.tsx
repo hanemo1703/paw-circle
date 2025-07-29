@@ -7,7 +7,8 @@ import { MapPin, MessageCircle, Pencil, Phone, Share2, Trash2 } from 'lucide-rea
 import { api, toAssetUrl } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { formatRelativeTime } from '../../../lib/format';
-import Toast, { ToastType } from '../../../components/Toast';
+import { useToast } from '../../../lib/useToast';
+import { useConfirmDialog } from '../../../lib/useConfirmDialog';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import Dropdown from '../../../components/Dropdown';
 import styles from './index.module.scss';
@@ -115,9 +116,8 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
   const [pendingStatus, setPendingStatus] = useState<PostStatus | null>(null);
   const [pets, setPets] = useState<AdoptionPetInfo[]>(post?.pets ?? []);
   const [updatingPetIndex, setUpdatingPetIndex] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const deleteDialog = useConfirmDialog();
+  const { showToast, toastNode } = useToast();
   const { user, accessToken } = useAuth();
 
   if (!post) {
@@ -143,9 +143,9 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
     try {
       await api.patch(`/posts/${post.id}`, { status: pendingStatus }, accessToken || undefined);
       setStatus(pendingStatus);
-      setToast({ message: 'Đã cập nhật trạng thái tin.', type: 'success' });
+      showToast('Đã cập nhật trạng thái tin.');
     } catch (err: any) {
-      setToast({ message: err.message || 'Cập nhật trạng thái thất bại.', type: 'error' });
+      showToast(err.message || 'Cập nhật trạng thái thất bại.', 'error');
     } finally {
       setUpdatingStatus(false);
       setPendingStatus(null);
@@ -160,23 +160,22 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
       const updated = await api.patch(`/posts/${post.id}`, { pets: updatedPets }, accessToken || undefined);
       setPets(updated.pets ?? updatedPets);
       setStatus(updated.status);
-      setToast({ message: 'Đã cập nhật trạng thái bé.', type: 'success' });
+      showToast('Đã cập nhật trạng thái bé.');
     } catch (err: any) {
-      setToast({ message: err.message || 'Cập nhật trạng thái thất bại.', type: 'error' });
+      showToast(err.message || 'Cập nhật trạng thái thất bại.', 'error');
     } finally {
       setUpdatingPetIndex(null);
     }
   };
 
   const confirmDelete = async () => {
-    setDeleting(true);
+    deleteDialog.setSubmitting(true);
     try {
       await api.delete(`/posts/${post.id}`, accessToken || undefined);
       router.push(`${LIST_PATH[post.type]}?deleted=1`);
     } catch (err: any) {
-      setDeleting(false);
-      setConfirmDeleteOpen(false);
-      setToast({ message: err.message || 'Xóa bài đăng thất bại.', type: 'error' });
+      deleteDialog.close();
+      showToast(err.message || 'Xóa bài đăng thất bại.', 'error');
     }
   };
 
@@ -192,7 +191,7 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
         return;
       }
       await navigator.clipboard.writeText(url);
-      setToast({ message: 'Đã sao chép liên kết bài đăng!', type: 'success' });
+      showToast('Đã sao chép liên kết bài đăng!');
     } catch {
       // User cancelled the share sheet or clipboard write failed — no-op
     }
@@ -200,16 +199,16 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
 
   return (
     <div className={`container ${styles.wrapper}`}>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      {confirmDeleteOpen && (
+      {toastNode}
+      {deleteDialog.isOpen && (
         <ConfirmDialog
           title="Xóa bài đăng?"
           message="Bạn có chắc chắn muốn xóa bài đăng này? Hành động này không thể hoàn tác."
           confirmText="Xóa tin"
           danger
-          confirming={deleting}
+          confirming={deleteDialog.submitting}
           onConfirm={confirmDelete}
-          onCancel={() => setConfirmDeleteOpen(false)}
+          onCancel={deleteDialog.close}
         />
       )}
       {pendingStatus && (
@@ -418,10 +417,10 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
               <button
                 type="button"
                 className={`${styles.sidebarLink} ${styles.sidebarLinkDanger}`}
-                onClick={() => setConfirmDeleteOpen(true)}
-                disabled={deleting}
+                onClick={() => deleteDialog.open()}
+                disabled={deleteDialog.submitting}
               >
-                <Trash2 size={16} /> {deleting ? 'Đang xóa...' : 'Xóa tin'}
+                <Trash2 size={16} /> {deleteDialog.submitting ? 'Đang xóa...' : 'Xóa tin'}
               </button>
             </div>
           )}

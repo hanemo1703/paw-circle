@@ -210,9 +210,18 @@ export class PostsService {
     for (const post of capped) {
       const geocoded = await forwardGeocode(post.address as string);
       if (!geocoded) continue;
-      await this.postsRepo.update(post.id, geocoded);
       resolved.push({ id: post.id, ...geocoded });
     }
+
+    if (resolved.length > 0) {
+      await this.postsRepo.query(
+        `UPDATE posts SET latitude = v.latitude, longitude = v.longitude
+         FROM unnest($1::uuid[], $2::float8[], $3::float8[]) AS v(id, latitude, longitude)
+         WHERE posts.id = v.id`,
+        [resolved.map((r) => r.id), resolved.map((r) => r.latitude), resolved.map((r) => r.longitude)],
+      );
+    }
+
     return resolved;
   }
 

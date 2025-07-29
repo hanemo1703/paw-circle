@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { api, toAssetUrl } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { connectSocket } from '../../../lib/socket';
-import Toast, { ToastType } from '../../../components/Toast';
+import { useToast } from '../../../lib/useToast';
 import styles from './index.module.scss';
 
 interface OtherUser {
@@ -36,7 +36,7 @@ export default function MessageThreadPage() {
   const [sending, setSending] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const { showToast, toastNode } = useToast();
   const listRef = useRef<HTMLDivElement>(null);
 
   function scrollToBottom() {
@@ -161,7 +161,7 @@ export default function MessageThreadPage() {
     } catch (err: any) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setDraft(content);
-      setToast({ message: err.message, type: 'error' });
+      showToast(err.message, 'error');
     } finally {
       setSending(false);
     }
@@ -238,7 +238,7 @@ export default function MessageThreadPage() {
         </div>
       </div>
 
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toastNode}
     </div>
   );
 }

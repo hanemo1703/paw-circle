@@ -8,6 +8,7 @@ import { api, toAssetUrl } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { namesMatch } from '../../../lib/location';
 import { PROVINCES_API_URL, Province, useRegionOptions } from '../../../lib/useRegionOptions';
+import { useImageUpload } from '../../../lib/useImageUpload';
 import Dropdown from '../../../components/Dropdown';
 import styles from '../new/index.module.scss';
 
@@ -173,14 +174,13 @@ export default function EditPostPage({ post }: Props) {
   const { isAuthenticated, user, accessToken } = useAuth();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [showMap, setShowMap] = useState(false);
-  const [existingImages, setExistingImages] = useState<string[]>(post?.images ?? []);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const gallery = useImageUpload({
+    maxFiles: MAX_IMAGES,
+    maxSizeMB: MAX_IMAGE_SIZE_MB,
+    existing: post?.images ?? [],
+  });
   const [uploadingImages, setUploadingImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const imagePreviewsRef = useRef<string[]>([]);
-  imagePreviewsRef.current = imagePreviews;
 
   const speciesInfo = toSpeciesOption(post?.species);
 
@@ -243,12 +243,6 @@ export default function EditPostPage({ post }: Props) {
     }
   }, [checkingAuth, isAuthenticated, post, user, router]);
 
-  useEffect(() => {
-    return () => {
-      imagePreviewsRef.current.forEach((src) => URL.revokeObjectURL(src));
-    };
-  }, []);
-
   if (!post) {
     return (
       <div className={styles.wrapper}>
@@ -270,8 +264,6 @@ export default function EditPostPage({ post }: Props) {
   const showSingleAnimal = showSpecies && !showPetList;
   const selectedProvince = provinces.find((p) => String(p.code) === provinceCode);
   const selectedWard = wards.find((w) => String(w.code) === wardCode);
-
-  const totalImages = existingImages.length + imageFiles.length;
 
   const reverseGeocodeAndFill = async (lat: number, lng: number) => {
     if (provinces.length === 0) return;
@@ -300,52 +292,6 @@ export default function EditPostPage({ post }: Props) {
     }
   };
 
-  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []);
-    e.target.value = '';
-
-    const rejected: string[] = [];
-    const accepted = picked.filter((file) => {
-      if (!file.type.startsWith('image/') || file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-        rejected.push(file.name);
-        return false;
-      }
-      return true;
-    });
-
-    const merged = [...imageFiles, ...accepted];
-    const remainingSlots = MAX_IMAGES - existingImages.length;
-    const truncated = merged.length > remainingSlots;
-    const finalFiles = merged.slice(0, Math.max(remainingSlots, 0));
-
-    if (rejected.length > 0) {
-      setImageError(`Đã bỏ qua ảnh không hợp lệ hoặc quá ${MAX_IMAGE_SIZE_MB}MB: ${rejected.join(', ')}`);
-    } else if (truncated) {
-      setImageError(`Chỉ được chọn tối đa ${MAX_IMAGES} ảnh.`);
-    } else {
-      setImageError(null);
-    }
-
-    const acceptedCount = finalFiles.length - imageFiles.length;
-    const newPreviews = accepted.slice(0, Math.max(acceptedCount, 0)).map((file) => URL.createObjectURL(file));
-
-    setImageFiles(finalFiles);
-    setImagePreviews([...imagePreviews, ...newPreviews]);
-  };
-
-  const removeExistingImage = (index: number) => {
-    setExistingImages((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const removeNewImage = (index: number) => {
-    setImagePreviews((prev) => {
-      URL.revokeObjectURL(prev[index]);
-      return prev.filter((_, i) => i !== index);
-    });
-    setImageFiles((prev) => prev.filter((_, i) => i !== index));
-    setImageError(null);
-  };
-
   const onSubmit = handleSubmit(async (data) => {
     const speciesValue = data.species === 'OTHER' ? data.speciesOther.trim() : SPECIES_LABEL[data.species];
     const regionAddress =
@@ -353,11 +299,11 @@ export default function EditPostPage({ post }: Props) {
     const address = [data.detailAddress.trim(), regionAddress].filter(Boolean).join(', ');
 
     let uploadedUrls: string[] = [];
-    if (imageFiles.length > 0) {
+    if (gallery.imageFiles.length > 0) {
       setUploadingImages(true);
       try {
         const formData = new FormData();
-        imageFiles.forEach((file) => formData.append('images', file));
+        gallery.imageFiles.forEach((file) => formData.append('images', file));
         const res = await api.postForm('/posts/upload-images', formData, accessToken || undefined);
         uploadedUrls = res.urls;
       } catch (err: any) {
@@ -374,7 +320,7 @@ export default function EditPostPage({ post }: Props) {
         {
           title: data.title,
           description: data.description,
-          images: [...existingImages, ...uploadedUrls],
+          images: [...gallery.existingImages, ...uploadedUrls],
           address,
           ...(selectedProvince ? { provinceCode: selectedProvince.code } : {}),
           ...(selectedWard ? { wardCode: selectedWard.code } : {}),
@@ -447,38 +393,38 @@ export default function EditPostPage({ post }: Props) {
             accept="image/*"
             multiple
             className={styles.hiddenFileInput}
-            disabled={isSubmitting || uploadingImages || totalImages >= MAX_IMAGES}
-            onChange={handleFilesSelected}
+            disabled={isSubmitting || uploadingImages || gallery.totalCount >= MAX_IMAGES}
+            onChange={gallery.handleFilesSelected}
           />
-          {imageError && <p style={{ color: 'red', fontSize: 13 }}>{imageError}</p>}
+          {gallery.imageError && <p style={{ color: 'red', fontSize: 13 }}>{gallery.imageError}</p>}
           <div className={styles.imageGrid}>
-            {existingImages.map((img, idx) => (
+            {gallery.existingImages.map((img, idx) => (
               <div key={img} className={styles.imageTile}>
                 <img src={toAssetUrl(img)} alt={`Ảnh ${idx + 1}`} />
                 <button
                   type="button"
                   className={styles.imageRemoveBtn}
-                  onClick={() => removeExistingImage(idx)}
+                  onClick={() => gallery.removeExisting(idx)}
                   aria-label="Xóa ảnh"
                 >
                   <X size={14} />
                 </button>
               </div>
             ))}
-            {imagePreviews.map((src, idx) => (
+            {gallery.imagePreviews.map((src, idx) => (
               <div key={src} className={styles.imageTile}>
                 <img src={src} alt={`Ảnh mới ${idx + 1}`} />
                 <button
                   type="button"
                   className={styles.imageRemoveBtn}
-                  onClick={() => removeNewImage(idx)}
+                  onClick={() => gallery.removeNew(idx)}
                   aria-label="Xóa ảnh"
                 >
                   <X size={14} />
                 </button>
               </div>
             ))}
-            {totalImages < MAX_IMAGES && (
+            {gallery.totalCount < MAX_IMAGES && (
               <button
                 type="button"
                 className={styles.imageAddTile}

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import Toast, { ToastType } from '../../components/Toast';
+import { useToast } from '../../lib/useToast';
 import GoogleAuthButton from '../../components/GoogleAuthButton';
 import FacebookAuthButton from '../../components/FacebookAuthButton';
 import styles from './index.module.scss';
@@ -15,11 +15,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const { showToast, toastNode } = useToast();
 
   useEffect(() => {
     if (router.isReady && router.query.registered === '1') {
-      setToast({ message: 'Đăng ký thành công! Vui lòng đăng nhập.', type: 'success' });
+      showToast('Đăng ký thành công! Vui lòng đăng nhập.');
       router.replace('/login', undefined, { shallow: true });
     }
   }, [router.isReady, router.query.registered]);
@@ -31,7 +31,7 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login', { email, password });
       login(res.accessToken, res.user);
-      setToast({ message: 'Đăng nhập thành công!', type: 'success' });
+      showToast('Đăng nhập thành công!');
       setTimeout(() => router.push('/'), 1200);
     } catch (err: any) {
       setError(err.message);
@@ -42,7 +42,7 @@ export default function LoginPage() {
 
   return (
     <div className={styles.wrapper}>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toastNode}
       <h1 className={styles.title}>Đăng nhập</h1>
       <form onSubmit={handleSubmit}>
         <div className={styles.field}>
@@ -81,7 +81,7 @@ export default function LoginPage() {
               <div className={styles.googleWrapper}>
                 <GoogleAuthButton
                   onSuccess={() => {
-                    setToast({ message: 'Đăng nhập thành công!', type: 'success' });
+                    showToast('Đăng nhập thành công!');
                     setTimeout(() => router.push('/'), 1200);
                   }}
                   onError={(message) => setError(message)}
@@ -92,7 +92,7 @@ export default function LoginPage() {
               <div className={styles.facebookWrapper}>
                 <FacebookAuthButton
                   onSuccess={() => {
-                    setToast({ message: 'Đăng nhập thành công!', type: 'success' });
+                    showToast('Đăng nhập thành công!');
                     setTimeout(() => router.push('/'), 1200);
                   }}
                   onError={(message) => setError(message)}
