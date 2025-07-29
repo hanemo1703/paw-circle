@@ -1,8 +1,9 @@
 # E2E tests (Playwright)
 
-Phase 1 of the E2E suite: infrastructure, fixtures, and an auth + smoke-navigation
-suite. Later phases (posts CRUD per type, donations, messaging/notifications/profile)
-are not built yet.
+Phase 1 (infra, fixtures, auth + smoke-navigation) and Phase 2 (posts browse/
+filter/pagination/map-toggle, create/edit/delete across all 4 post types,
+post-detail owner actions) are built. Donations and messaging/notifications/
+profile (Phases 3-4) are not built yet.
 
 ## Why a separate stack
 
@@ -72,29 +73,67 @@ respectively, matching the ports above.
   from your dev stack's uploads, but it will grow the longer you run the
   suite repeatedly — feel free to `rm -rf backend/uploads/*` on that instance
   if it gets large.
-- **External network calls aren't mocked** (province/ward lookups via
-  provinces.open-api.vn, reverse geocoding via Nominatim, Leaflet map tiles).
-  Phase 1 doesn't exercise any of these (no post-creation flow yet), but
-  Phase 2 will need to budget for their latency/flakiness.
+- **Province/ward lookups are mocked, other external calls aren't.** Any spec
+  that drives the create/edit post forms' Khu vực dropdowns calls
+  `mockRegionApi(page)` (`e2e/helpers/mockRegionApi.ts`) first, which stubs
+  provinces.open-api.vn with a small fixed dataset — real calls to it were the
+  slowest and flakiest part of the create flow. Reverse geocoding (Nominatim)
+  and Leaflet map tiles are still real network calls; Phase 2 doesn't exercise
+  the map-pin/reverse-geocode path, only the plain map-view toggle.
+- **Posts accumulate in the E2E DB across runs** (same underlying reason as
+  the uploads point above — no seed/reset script exists yet). Phase 2's browse
+  tests (`posts-browse.spec.ts`) never assert on the *total* number of posts
+  in a list for this reason — every assertion scopes down to a per-test-run
+  unique title/suffix via the list page's own search box first. If this
+  instance has been used a lot, it may have accumulated hundreds of leftover
+  posts; that's harmless (isolated from your dev data) but you can reset it
+  any time with `docker compose down -v postgres-e2e && docker compose up -d
+  postgres-e2e` (drops and recreates the volume) followed by restarting the
+  isolated backend so `synchronize: true` recreates the schema.
+- **Running the full suite at once can occasionally need its built-in retry.**
+  The isolated stack is a single dev-mode Next.js + NestJS instance (see
+  `playwright.config.ts`), not built for unlimited concurrent load — under the
+  default local worker count, a client-side timer (e.g. the post-list search
+  debounce) can occasionally get starved of CPU time long enough that a single
+  assertion needs its retry. This reproduces less depending on machine load;
+  running a single spec file in isolation is reliably fast and stable. This is
+  a capacity characteristic of the local stack, not a flaky test — if you hit
+  it during development, re-run rather than chase it with longer timeouts.
 
 ## Layout
 
 ```
 playwright.config.ts       # baseURL, projects, timeouts
 e2e/
-  fixtures.ts               # `user` (API-registered throwaway user) and
-                             # `authedPage` (localStorage pre-seeded) fixtures
-  helpers/random.ts          # unique email/name generators
+  fixtures.ts               # `user` (API-registered throwaway user),
+                             # `authedPage` (localStorage pre-seeded), and
+                             # `registerAndLogin`/`seedAuthedSession` helpers
+                             # for tests that need a *second* logged-in user
+  helpers/
+    random.ts                # unique email/name generators
+    api.ts                   # `createPost` — seeds a post via the backend
+                              # REST API directly, bypassing the create form,
+                              # for tests whose focus is detail/edit/delete/
+                              # browse rather than the create flow itself
+    mockRegionApi.ts          # stubs provinces.open-api.vn with a fixed
+                              # dataset for any test driving the Khu vực
+                              # province/ward dropdowns
   specs/
     smoke-nav.spec.ts        # public pages render; protected pages redirect
     auth.spec.ts             # register/login/logout, forgot/reset-password
+    posts-create.spec.ts     # create flow via the real form for all 4 post
+                             # types (LOST/ADOPTION/SUPPLY/TRADE)
+    posts-manage.spec.ts     # owner edit/status-change/delete, per-pet
+                             # adoption status, non-owner "message author" view
+    posts-browse.spec.ts     # list search, status/species filter chips,
+                             # pagination, map-view toggle
 ```
 
 ## Adding future phases
 
-Reuse `e2e/fixtures.ts`'s `user`/`authedPage` fixtures. For flows that need
-existing data (a post, a campaign) rather than driving the create-form UI
-every time, add thin REST wrappers to a new `e2e/helpers/api.ts` (e.g.
-`createPost`, `createCampaign`) that call the backend directly with the
-fixture's `accessToken`, the same way `fixtures.ts` calls `/auth/register` and
-`/auth/login`.
+Reuse `e2e/fixtures.ts`'s `user`/`authedPage` fixtures, and `e2e/helpers/api.ts`
+for seeding data via direct REST calls rather than driving a create-form UI
+every time a test just needs *existing* data to work with. Follow the same
+pattern for donations (e.g. `createCampaign` in `helpers/api.ts`) and
+messaging (two browser contexts + `registerAndLogin`/`seedAuthedSession` from
+`fixtures.ts`, as `posts-manage.spec.ts`'s non-owner test already does).

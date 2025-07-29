@@ -27,7 +27,7 @@ export interface TestUser {
   authUser: AuthUser;
 }
 
-async function registerAndLogin(request: APIRequestContext): Promise<TestUser> {
+export async function registerAndLogin(request: APIRequestContext): Promise<TestUser> {
   const email = randomTestEmail();
   const password = TEST_PASSWORD;
   const name = randomTestName();
@@ -48,6 +48,22 @@ async function registerAndLogin(request: APIRequestContext): Promise<TestUser> {
   const body = await loginRes.json();
 
   return { email, password, name, accessToken: body.accessToken, authUser: body.user };
+}
+
+// Seeds a logged-in session into localStorage before any navigation, so
+// AuthProvider's mount-time useEffect picks it up immediately (see the
+// `authedPage` fixture below for why this must run via addInitScript).
+// Exported so specs that need a *second*, independent logged-in user in the
+// same test (e.g. an owner vs. a non-owner viewer) can seed a manually
+// created browser context/page without going through the `authedPage` fixture.
+export async function seedAuthedSession(page: Page, user: TestUser): Promise<void> {
+  await page.addInitScript(
+    ([key, value]) => window.localStorage.setItem(key, value),
+    ['petconnect_auth', JSON.stringify({ user: user.authUser, accessToken: user.accessToken })] as [
+      string,
+      string,
+    ],
+  );
 }
 
 type Fixtures = {
@@ -72,13 +88,7 @@ export const test = base.extend<Fixtures>({
   // and AuthProvider's mount-time useEffect reads localStorage — otherwise
   // isAuthenticated is briefly false and protected pages redirect to /login.
   authedPage: async ({ page, user }, use) => {
-    await page.addInitScript(
-      ([key, value]) => window.localStorage.setItem(key, value),
-      ['petconnect_auth', JSON.stringify({ user: user.authUser, accessToken: user.accessToken })] as [
-        string,
-        string,
-      ],
-    );
+    await seedAuthedSession(page, user);
     await use(page);
   },
 });

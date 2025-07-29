@@ -7,8 +7,18 @@ const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3010';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
-  workers: process.env.CI ? 2 : undefined,
-  retries: process.env.CI ? 1 : 0,
+  // The isolated stack is a single dev-mode Next.js + NestJS instance (see
+  // e2e/README.md), not built to absorb unlimited concurrent load. Running
+  // the full suite with Playwright's default (CPU-count) worker count causes
+  // occasional, test-agnostic failures under contention — a slow first-time
+  // page compile, a dropped connection to the backend, a client-side timer
+  // callback (e.g. PostList's search debounce) getting starved of CPU time.
+  // Capping workers locally too (not just in CI) reduces how often this
+  // happens; retries handle the residual — this is a capacity limit of the
+  // local dev-mode stack, not a bug in a specific test, so don't chase it by
+  // endlessly raising individual assertion timeouts instead.
+  workers: process.env.CI ? 2 : 4,
+  retries: 1,
   reporter: 'html',
   expect: {
     timeout: 10_000,
