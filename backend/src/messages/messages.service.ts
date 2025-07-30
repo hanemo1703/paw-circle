@@ -18,6 +18,7 @@ interface InboxRow {
   receiver_id: string;
   receiver_name: string;
   receiver_avatar_url: string | null;
+  total_count: string;
 }
 
 const MESSAGE_SELECT = [
@@ -110,12 +111,16 @@ export class MessagesService {
   async inbox(userId: string, page = 1, limit = 20) {
     const offset = (page - 1) * limit;
 
+    // Total conversation count is folded in via COUNT(*) OVER() instead of a separate
+    // query — window functions are evaluated before LIMIT/OFFSET, so it still reflects
+    // the full DISTINCT ON result set, not just the returned page.
     const rows: InboxRow[] = await this.messagesRepo.query(
       `
       SELECT
         m.content, m."senderId", m."receiverId", m."createdAt",
         s.id AS sender_id, s.name AS sender_name, s."avatarUrl" AS sender_avatar_url,
-        r.id AS receiver_id, r.name AS receiver_name, r."avatarUrl" AS receiver_avatar_url
+        r.id AS receiver_id, r.name AS receiver_name, r."avatarUrl" AS receiver_avatar_url,
+        COUNT(*) OVER() AS total_count
       FROM (
         SELECT DISTINCT ON (counterpart_id) *,
           CASE WHEN "senderId" = $1 THEN "receiverId" ELSE "senderId" END AS counterpart_id
@@ -129,17 +134,6 @@ export class MessagesService {
       LIMIT $2 OFFSET $3
       `,
       [userId, limit, offset],
-    );
-
-    const [{ count }] = await this.messagesRepo.query(
-      `
-      SELECT COUNT(*) AS count FROM (
-        SELECT DISTINCT CASE WHEN "senderId" = $1 THEN "receiverId" ELSE "senderId" END AS counterpart_id
-        FROM messages
-        WHERE "senderId" = $1 OR "receiverId" = $1
-      ) t
-      `,
-      [userId],
     );
 
     // Unread counts span the whole conversation history (not just the latest message),
@@ -167,7 +161,7 @@ export class MessagesService {
       };
     });
 
-    return { data, total: Number(count) };
+    return { data, total: rows.length > 0 ? Number(rows[0].total_count) : 0 };
   }
 
   unreadCount(userId: string) {

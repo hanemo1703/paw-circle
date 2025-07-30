@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { disconnectSocket } from './socket';
 
 export interface AuthUser {
@@ -45,33 +45,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState(readStoredAuth());
   }, []);
 
-  function login(accessToken: string, user: AuthUser) {
+  const login = useCallback((accessToken: string, user: AuthUser) => {
     const next = { user, accessToken };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setState(next);
-  }
+  }, []);
 
-  function logout() {
+  const logout = useCallback(() => {
     window.localStorage.removeItem(STORAGE_KEY);
     setState(EMPTY_STATE);
     disconnectSocket();
-  }
+  }, []);
 
-  function updateUser(user: AuthUser) {
+  const updateUser = useCallback((user: AuthUser) => {
     setState((prev) => {
       const next = { ...prev, user };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-  }
+  }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{ ...state, isAuthenticated: !!state.accessToken, login, logout, updateUser }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextValue>(
+    () => ({ ...state, isAuthenticated: !!state.accessToken, login, logout, updateUser }),
+    [state, login, logout, updateUser],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

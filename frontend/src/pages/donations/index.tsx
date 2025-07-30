@@ -269,6 +269,7 @@ export default function DonationsPage({ campaigns: initialCampaigns, total: init
                           className={styles.cardImage}
                           src={c.images?.length > 0 ? toAssetUrl(c.images[0]) : '/logo.jpg'}
                           alt={c.title}
+                          loading="lazy"
                         />
                         <div className={styles.cardBody}>
                           <div className={styles.badgeRow}>

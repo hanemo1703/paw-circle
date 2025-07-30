@@ -38,6 +38,12 @@ export default function MessageThreadPage() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const { showToast, toastNode } = useToast();
   const listRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  messagesRef.current = messages;
+  const hasMoreRef = useRef(hasMore);
+  hasMoreRef.current = hasMore;
+  const loadingOlderRef = useRef(loadingOlder);
+  loadingOlderRef.current = loadingOlder;
 
   function scrollToBottom() {
     const el = listRef.current;
@@ -112,8 +118,8 @@ export default function MessageThreadPage() {
     const token = accessToken;
 
     async function handleScroll() {
-      if (!el || el.scrollTop > 80 || loadingOlder || !hasMore || messages.length === 0) return;
-      const oldest = messages[0];
+      if (!el || el.scrollTop > 80 || loadingOlderRef.current || !hasMoreRef.current || messagesRef.current.length === 0) return;
+      const oldest = messagesRef.current[0];
       setLoadingOlder(true);
       const prevScrollHeight = el.scrollHeight;
       try {
@@ -135,7 +141,7 @@ export default function MessageThreadPage() {
 
     el.addEventListener('scroll', handleScroll);
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [accessToken, otherUserId, messages, hasMore, loadingOlder]);
+  }, [accessToken, otherUserId]);
 
   async function handleSend() {
     const content = draft.trim();

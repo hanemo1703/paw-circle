@@ -9,6 +9,7 @@ import {
 import { User } from '../../users/entities/user.entity';
 
 @Entity('messages')
+@Index(['receiverId', 'isRead'])
 export class Message {
   @PrimaryGeneratedColumn('uuid')
   id: string;

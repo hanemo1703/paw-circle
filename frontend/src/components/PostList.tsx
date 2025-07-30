@@ -412,9 +412,9 @@ export default function PostList({
                       className={`${styles.postRow} ${post.status && post.status !== 'OPEN' ? styles.postRowDimmed : ''}`}
                     >
                       {post.images && post.images.length > 0 ? (
-                        <img className={styles.thumb} src={toAssetUrl(post.images[0])} alt={post.title} />
+                        <img className={styles.thumb} src={toAssetUrl(post.images[0])} alt={post.title} loading="lazy" />
                       ) : (
-                        <img className={styles.thumb} src="/logo.jpg" alt={post.title} />
+                        <img className={styles.thumb} src="/logo.jpg" alt={post.title} loading="lazy" />
                       )}
                       <div className={styles.rowBody}>
                         <div className={styles.rowTop}>

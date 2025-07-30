@@ -114,6 +114,7 @@ export default function MessagesInboxPage() {
                   className={styles.avatar}
                   src={toAssetUrl(c.otherUser.avatarUrl) || '/logo.jpg'}
                   alt={c.otherUser.name}
+                  loading="lazy"
                 />
                 <div className={styles.msgBody}>
                   <div className={`${styles.msgName} ${unread ? styles.unread : ''}`}>
