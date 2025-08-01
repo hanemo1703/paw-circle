@@ -8,6 +8,7 @@ import { api } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { namesMatch } from '../../../lib/location';
 import { PROVINCES_API_URL, Province, useRegionOptions } from '../../../lib/useRegionOptions';
+import { useImageUpload } from '../../../lib/useImageUpload';
 import { PostItem } from '../../../components/PostList';
 import Dropdown from '../../../components/Dropdown';
 import styles from './index.module.scss';
@@ -138,13 +139,9 @@ export default function NewPostPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
   const [showMap, setShowMap] = useState(false);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const gallery = useImageUpload({ maxFiles: MAX_IMAGES, maxSizeMB: MAX_IMAGE_SIZE_MB });
   const [uploadingImages, setUploadingImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const imagePreviewsRef = useRef<string[]>([]);
-  imagePreviewsRef.current = imagePreviews;
 
   const {
     register,
@@ -188,56 +185,9 @@ export default function NewPostPage() {
     }
   }, [checkingAuth, isAuthenticated, router]);
 
-  useEffect(() => {
-    return () => {
-      imagePreviewsRef.current.forEach((src) => URL.revokeObjectURL(src));
-    };
-  }, []);
-
   if (checkingAuth || !isAuthenticated) {
     return null;
   }
-
-  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []);
-    e.target.value = '';
-
-    const rejected: string[] = [];
-    const accepted = picked.filter((file) => {
-      if (!file.type.startsWith('image/') || file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-        rejected.push(file.name);
-        return false;
-      }
-      return true;
-    });
-
-    const merged = [...imageFiles, ...accepted];
-    const truncated = merged.length > MAX_IMAGES;
-    const finalFiles = merged.slice(0, MAX_IMAGES);
-
-    if (rejected.length > 0) {
-      setImageError(`Đã bỏ qua ảnh không hợp lệ hoặc quá ${MAX_IMAGE_SIZE_MB}MB: ${rejected.join(', ')}`);
-    } else if (truncated) {
-      setImageError(`Chỉ được chọn tối đa ${MAX_IMAGES} ảnh.`);
-    } else {
-      setImageError(null);
-    }
-
-    const acceptedCount = finalFiles.length - imageFiles.length;
-    const newPreviews = accepted.slice(0, acceptedCount).map((file) => URL.createObjectURL(file));
-
-    setImageFiles(finalFiles);
-    setImagePreviews([...imagePreviews, ...newPreviews]);
-  };
-
-  const removeImage = (index: number) => {
-    setImagePreviews((prev) => {
-      URL.revokeObjectURL(prev[index]);
-      return prev.filter((_, i) => i !== index);
-    });
-    setImageFiles((prev) => prev.filter((_, i) => i !== index));
-    setImageError(null);
-  };
 
   const reverseGeocodeAndFill = async (lat: number, lng: number) => {
     if (provinces.length === 0) return;
@@ -289,11 +239,11 @@ export default function NewPostPage() {
     const address = [data.detailAddress.trim(), regionAddress].filter(Boolean).join(', ');
 
     let uploadedUrls: string[] = [];
-    if (imageFiles.length > 0) {
+    if (gallery.imageFiles.length > 0) {
       setUploadingImages(true);
       try {
         const formData = new FormData();
-        imageFiles.forEach((file) => formData.append('images', file));
+        gallery.imageFiles.forEach((file) => formData.append('images', file));
         const res = await api.postForm('/posts/upload-images', formData, accessToken || undefined);
         uploadedUrls = res.urls;
       } catch (err: any) {
@@ -425,24 +375,24 @@ export default function NewPostPage() {
             multiple
             className={styles.hiddenFileInput}
             disabled={isSubmitting || uploadingImages}
-            onChange={handleFilesSelected}
+            onChange={gallery.handleFilesSelected}
           />
-          {imageError && <p style={{ color: 'red', fontSize: 13 }}>{imageError}</p>}
+          {gallery.imageError && <p style={{ color: 'red', fontSize: 13 }}>{gallery.imageError}</p>}
           <div className={styles.imageGrid}>
-            {imagePreviews.map((src, idx) => (
+            {gallery.imagePreviews.map((src, idx) => (
               <div key={src} className={styles.imageTile}>
                 <img src={src} alt={`Ảnh ${idx + 1}`} />
                 <button
                   type="button"
                   className={styles.imageRemoveBtn}
-                  onClick={() => removeImage(idx)}
+                  onClick={() => gallery.removeNew(idx)}
                   aria-label="Xóa ảnh"
                 >
                   <X size={14} />
                 </button>
               </div>
             ))}
-            {imagePreviews.length < MAX_IMAGES && (
+            {gallery.imagePreviews.length < MAX_IMAGES && (
               <button
                 type="button"
                 className={styles.imageAddTile}

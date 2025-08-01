@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
@@ -42,18 +42,21 @@ export default function PostsMapView({ posts }: Props) {
   const mapRef = useRef<L.Map | null>(null);
   const [resolvedCoords, setResolvedCoords] = useState<Record<string, { latitude: number; longitude: number }>>({});
 
-  const withCoords = posts
-    .map((post) => ({ ...post, ...(resolvedCoords[post.id] ?? {}) }))
-    .filter((post): post is PostItem & { latitude: number; longitude: number } => post.latitude != null && post.longitude != null);
-
-  const withoutCoordsIds = posts
-    .filter((post) => {
+  const { withCoords, withoutCoordsIds } = useMemo(() => {
+    const coords: (PostItem & { latitude: number; longitude: number })[] = [];
+    const missingIds: string[] = [];
+    for (const post of posts) {
       const merged = { ...post, ...(resolvedCoords[post.id] ?? {}) };
-      return merged.latitude == null || merged.longitude == null;
-    })
-    .map((post) => post.id);
+      if (merged.latitude != null && merged.longitude != null) {
+        coords.push(merged as PostItem & { latitude: number; longitude: number });
+      } else {
+        missingIds.push(post.id);
+      }
+    }
+    return { withCoords: coords, withoutCoordsIds: missingIds };
+  }, [posts, resolvedCoords]);
 
-  const withoutCoordsKey = withoutCoordsIds.slice().sort().join(',');
+  const withoutCoordsKey = useMemo(() => withoutCoordsIds.slice().sort().join(','), [withoutCoordsIds]);
 
   useEffect(() => {
     if (withoutCoordsIds.length === 0) return;
@@ -79,10 +82,7 @@ export default function PostsMapView({ posts }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [withoutCoordsKey]);
 
-  const locatableKey = withCoords
-    .map((p) => p.id)
-    .sort()
-    .join(',');
+  const locatableKey = useMemo(() => withCoords.map((p) => p.id).sort().join(','), [withCoords]);
 
   useEffect(() => {
     if (!mapRef.current || withCoords.length === 0) return;
@@ -120,6 +120,7 @@ export default function PostsMapView({ posts }: Props) {
                     className={styles.popupThumb}
                     src={post.images && post.images.length > 0 ? toAssetUrl(post.images[0]) : '/logo.jpg'}
                     alt={post.title}
+                    loading="lazy"
                   />
                   <div className={styles.popupBody}>
                     <span className={BADGE_CLASS[post.type]}>{BADGE_LABEL[post.type]}</span>

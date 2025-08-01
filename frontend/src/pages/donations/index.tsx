@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { GetServerSideProps } from 'next';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
@@ -25,6 +25,11 @@ interface Campaign {
   category: CampaignCategory;
   categoryOther?: string;
   createdAt: string;
+}
+
+interface CampaignsResponse {
+  data: Campaign[];
+  total: number;
 }
 
 const STATUS_LABEL: Record<CampaignStatus, string> = {
@@ -68,32 +73,6 @@ function progressPercent(c: Campaign): number | null {
   return Math.min(100, Math.round((c.currentAmount / c.targetAmount) * 100));
 }
 
-function sortCampaigns(list: Campaign[], sortBy: SortOption): Campaign[] {
-  const sorted = [...list];
-  if (sortBy === 'deadline') {
-    sorted.sort((a, b) => {
-      if (!a.deadline && !b.deadline) return 0;
-      if (!a.deadline) return 1;
-      if (!b.deadline) return -1;
-      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-    });
-    return sorted;
-  }
-  if (sortBy === 'progress') {
-    sorted.sort((a, b) => {
-      const pa = progressPercent(a);
-      const pb = progressPercent(b);
-      if (pa == null && pb == null) return 0;
-      if (pa == null) return 1;
-      if (pb == null) return -1;
-      return pb - pa;
-    });
-    return sorted;
-  }
-  sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  return sorted;
-}
-
 // Compact page-number list with ellipsis for large result sets, e.g. [1, 2, '...', 5, 6, 7, '...', 12].
 function getPageNumbers(current: number, total: number): (number | '...')[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -111,17 +90,42 @@ function getPageNumbers(current: number, total: number): (number | '...')[] {
   return result;
 }
 
-interface Props {
-  campaigns: Campaign[];
+function buildQuery(params: {
+  statusFilter: CampaignStatus[];
+  categoryFilter: CampaignCategory[];
+  search: string;
+  sortBy: SortOption;
+  page: number;
+  limit: number;
+}): string {
+  const qs = new URLSearchParams();
+  if (params.statusFilter.length > 0) qs.set('status', params.statusFilter.join(','));
+  if (params.categoryFilter.length > 0) qs.set('category', params.categoryFilter.join(','));
+  if (params.search) qs.set('search', params.search);
+  qs.set('sort', params.sortBy);
+  qs.set('page', String(params.page));
+  qs.set('limit', String(params.limit));
+  return qs.toString();
 }
 
-export default function DonationsPage({ campaigns }: Props) {
+interface Props {
+  campaigns: Campaign[];
+  total: number;
+}
+
+export default function DonationsPage({ campaigns: initialCampaigns, total: initialTotal }: Props) {
   const [statusFilter, setStatusFilter] = useState<CampaignStatus[]>(['ACTIVE']);
   const [categoryFilter, setCategoryFilter] = useState<CampaignCategory[]>([...CATEGORY_VALUES]);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+
+  const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns);
+  const [total, setTotal] = useState(initialTotal);
+  // Whether there's any campaign at all, ignoring filters — distinguishes "nothing
+  // created yet" from "no results for the current filter".
+  const [overallTotal, setOverallTotal] = useState<number | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim().toLowerCase()), SEARCH_DEBOUNCE_MS);
@@ -136,23 +140,48 @@ export default function DonationsPage({ campaigns }: Props) {
     setCategoryFilter((prev) => (prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]));
   }
 
-  const filteredCampaigns = useMemo(() => {
-    const filtered = campaigns.filter((c) => {
-      if (statusFilter.length > 0 && !statusFilter.includes(c.status)) return false;
-      if (categoryFilter.length > 0 && !categoryFilter.includes(c.category)) return false;
-      if (search && !`${c.title} ${c.description}`.toLowerCase().includes(search)) return false;
-      return true;
-    });
-    return sortCampaigns(filtered, sortBy);
-  }, [campaigns, statusFilter, categoryFilter, search, sortBy]);
-
   useEffect(() => {
     setPage(1);
   }, [statusFilter, categoryFilter, search, sortBy]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / PAGE_SIZE));
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const qs = buildQuery({ statusFilter, categoryFilter, search, sortBy, page, limit: PAGE_SIZE });
+        const res: CampaignsResponse = await api.get(`/donations/campaigns?${qs}`);
+        if (!cancelled) {
+          setCampaigns(res.data);
+          setTotal(res.total);
+        }
+      } catch {
+        // Transient fetch failure — keep showing the previous page
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [statusFilter, categoryFilter, search, sortBy, page]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOverallTotal() {
+      try {
+        const res: CampaignsResponse = await api.get('/donations/campaigns?page=1&limit=1');
+        if (!cancelled) setOverallTotal(res.total);
+      } catch {
+        if (!cancelled) setOverallTotal(1);
+      }
+    }
+    loadOverallTotal();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedCampaigns = filteredCampaigns.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className={`container ${styles.wrapper}`}>
@@ -166,7 +195,7 @@ export default function DonationsPage({ campaigns }: Props) {
         </Link>
       </div>
 
-      {campaigns.length === 0 ? (
+      {overallTotal === 0 ? (
         <p className={styles.empty}>
           Chưa có chiến dịch nào đang gây quỹ. Cá nhân hoặc tổ chức cứu hộ có
           thể tạo chiến dịch đầu tiên.
@@ -226,12 +255,12 @@ export default function DonationsPage({ campaigns }: Props) {
               />
             </div>
 
-            {filteredCampaigns.length === 0 ? (
+            {total === 0 ? (
               <p className={styles.empty}>Không tìm thấy chiến dịch phù hợp với bộ lọc đã chọn.</p>
             ) : (
               <>
                 <div className={styles.grid}>
-                  {pagedCampaigns.map((c) => {
+                  {campaigns.map((c) => {
                     const percent = progressPercent(c);
                     const remaining = remainingDaysLabel(c.deadline);
                     return (
@@ -240,6 +269,7 @@ export default function DonationsPage({ campaigns }: Props) {
                           className={styles.cardImage}
                           src={c.images?.length > 0 ? toAssetUrl(c.images[0]) : '/logo.jpg'}
                           alt={c.title}
+                          loading="lazy"
                         />
                         <div className={styles.cardBody}>
                           <div className={styles.badgeRow}>
@@ -320,11 +350,14 @@ export default function DonationsPage({ campaigns }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   let campaigns: Campaign[] = [];
+  let total = 0;
   try {
-    campaigns = await api.get('/donations/campaigns');
+    const res = await api.get('/donations/campaigns?status=ACTIVE&sort=newest&page=1&limit=6');
+    campaigns = res.data;
+    total = res.total;
   } catch {
     // Backend not running — still render the page with an empty list
   }
 
-  return { props: { campaigns } };
+  return { props: { campaigns, total } };
 };

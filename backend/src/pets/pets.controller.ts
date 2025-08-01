@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards, Req } from '@nestjs/common';
 import { PetsService } from './pets.service';
 import { CreatePetDto } from './dto/create-pet.dto';
+import { QueryPetDto } from './dto/query-pet.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('pets')
@@ -14,8 +15,8 @@ export class PetsController {
   }
 
   @Get()
-  findAllByOwner(@Query('ownerId') ownerId: string) {
-    return this.petsService.findAllByOwner(ownerId);
+  findAllByOwner(@Query('ownerId') ownerId: string, @Query() query: QueryPetDto) {
+    return this.petsService.findAllByOwner(ownerId, query);
   }
 
   @Get(':id')

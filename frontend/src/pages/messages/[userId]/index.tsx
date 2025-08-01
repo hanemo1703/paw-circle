@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { api, toAssetUrl } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { connectSocket } from '../../../lib/socket';
-import Toast, { ToastType } from '../../../components/Toast';
+import { useToast } from '../../../lib/useToast';
 import styles from './index.module.scss';
 
 interface OtherUser {
@@ -34,8 +34,21 @@ export default function MessageThreadPage() {
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const { showToast, toastNode } = useToast();
   const listRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  messagesRef.current = messages;
+  const hasMoreRef = useRef(hasMore);
+  hasMoreRef.current = hasMore;
+  const loadingOlderRef = useRef(loadingOlder);
+  loadingOlderRef.current = loadingOlder;
+
+  function scrollToBottom() {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -59,11 +72,13 @@ export default function MessageThreadPage() {
     let cancelled = false;
     async function load() {
       try {
-        const data: ChatMessage[] = await api.get(`/messages/${otherUserId}`, token);
+        const res: { data: ChatMessage[]; hasMore: boolean } = await api.get(`/messages/${otherUserId}`, token);
         if (cancelled) return;
-        setMessages(data);
+        setMessages(res.data);
+        setHasMore(res.hasMore);
+        requestAnimationFrame(scrollToBottom);
 
-        const first = data[0];
+        const first = res.data[0];
         if (first) {
           setOtherUser(first.senderId === currentUserId ? first.receiver! : first.sender!);
         } else {
@@ -82,6 +97,7 @@ export default function MessageThreadPage() {
     function handleNewMessage(message: ChatMessage) {
       if (message.senderId !== otherUserId && message.receiverId !== otherUserId) return;
       setMessages((prev) => [...prev, message]);
+      requestAnimationFrame(scrollToBottom);
       if (message.senderId === otherUserId) {
         api.patch(`/messages/${otherUserId}/read`, {}, token).catch(() => {});
       }
@@ -94,10 +110,38 @@ export default function MessageThreadPage() {
     };
   }, [user, accessToken, otherUserId]);
 
+  // Infinite scroll: fetching older history when scrolled near the top of the
+  // thread, preserving scroll position so the view doesn't jump after prepending.
   useEffect(() => {
     const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length]);
+    if (!el || !accessToken || !otherUserId) return;
+    const token = accessToken;
+
+    async function handleScroll() {
+      if (!el || el.scrollTop > 80 || loadingOlderRef.current || !hasMoreRef.current || messagesRef.current.length === 0) return;
+      const oldest = messagesRef.current[0];
+      setLoadingOlder(true);
+      const prevScrollHeight = el.scrollHeight;
+      try {
+        const res: { data: ChatMessage[]; hasMore: boolean } = await api.get(
+          `/messages/${otherUserId}?before=${encodeURIComponent(oldest.createdAt)}`,
+          token,
+        );
+        setMessages((prev) => [...res.data, ...prev]);
+        setHasMore(res.hasMore);
+        requestAnimationFrame(() => {
+          el.scrollTop = el.scrollHeight - prevScrollHeight;
+        });
+      } catch {
+        // Best-effort — user can retry by scrolling up again
+      } finally {
+        setLoadingOlder(false);
+      }
+    }
+
+    el.addEventListener('scroll', handleScroll);
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [accessToken, otherUserId]);
 
   async function handleSend() {
     const content = draft.trim();
@@ -113,6 +157,7 @@ export default function MessageThreadPage() {
       pending: true,
     };
     setMessages((prev) => [...prev, optimisticMessage]);
+    requestAnimationFrame(scrollToBottom);
     setDraft('');
     setSending(true);
 
@@ -122,7 +167,7 @@ export default function MessageThreadPage() {
     } catch (err: any) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setDraft(content);
-      setToast({ message: err.message, type: 'error' });
+      showToast(err.message, 'error');
     } finally {
       setSending(false);
     }
@@ -149,6 +194,7 @@ export default function MessageThreadPage() {
         </div>
 
         <div className={styles.msgList} ref={listRef}>
+          {loadingOlder && <div className={styles.loadingOlder}>Đang tải tin nhắn cũ hơn...</div>}
           {messages.length === 0 && otherUser && (
             <div className={styles.emptyThread}>
               <div className={styles.emptyThreadTitle}>Bắt đầu trò chuyện với {otherUser.name}</div>
@@ -198,7 +244,7 @@ export default function MessageThreadPage() {
         </div>
       </div>
 
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toastNode}
     </div>
   );
 }

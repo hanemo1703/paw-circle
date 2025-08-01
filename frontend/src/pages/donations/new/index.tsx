@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { Plus, X } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { useImageUpload, useSingleImageUpload } from '../../../lib/useImageUpload';
 import Dropdown from '../../../components/Dropdown';
 import styles from './index.module.scss';
 
@@ -63,21 +64,16 @@ export default function NewCampaignPage() {
   const router = useRouter();
   const { isAuthenticated, accessToken } = useAuth();
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const gallery = useImageUpload({ maxFiles: MAX_IMAGES, maxSizeMB: MAX_IMAGE_SIZE_MB });
   const [uploadingImages, setUploadingImages] = useState(false);
-  const [qrImageFile, setQrImageFile] = useState<File | null>(null);
-  const [qrImagePreview, setQrImagePreview] = useState<string | null>(null);
-  const [qrImageError, setQrImageError] = useState<string | null>(null);
+  const qrImage = useSingleImageUpload({
+    maxSizeMB: MAX_IMAGE_SIZE_MB,
+    invalidMessage: `Ảnh QR không hợp lệ hoặc vượt quá ${MAX_IMAGE_SIZE_MB}MB.`,
+  });
   const [bankOptions, setBankOptions] = useState<string[]>([]);
   const [fundingError, setFundingError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const qrFileInputRef = useRef<HTMLInputElement>(null);
-  const imagePreviewsRef = useRef<string[]>([]);
-  imagePreviewsRef.current = imagePreviews;
-  const qrImagePreviewRef = useRef<string | null>(null);
-  qrImagePreviewRef.current = qrImagePreview;
 
   const {
     register,
@@ -111,78 +107,9 @@ export default function NewCampaignPage() {
     }
   }, [checkingAuth, isAuthenticated, router]);
 
-  useEffect(() => {
-    return () => {
-      imagePreviewsRef.current.forEach((src) => URL.revokeObjectURL(src));
-      if (qrImagePreviewRef.current) URL.revokeObjectURL(qrImagePreviewRef.current);
-    };
-  }, []);
-
   if (checkingAuth || !isAuthenticated) {
     return null;
   }
-
-  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []);
-    e.target.value = '';
-
-    const rejected: string[] = [];
-    const accepted = picked.filter((file) => {
-      if (!file.type.startsWith('image/') || file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-        rejected.push(file.name);
-        return false;
-      }
-      return true;
-    });
-
-    const merged = [...imageFiles, ...accepted];
-    const truncated = merged.length > MAX_IMAGES;
-    const finalFiles = merged.slice(0, MAX_IMAGES);
-
-    if (rejected.length > 0) {
-      setImageError(`Đã bỏ qua ảnh không hợp lệ hoặc quá ${MAX_IMAGE_SIZE_MB}MB: ${rejected.join(', ')}`);
-    } else if (truncated) {
-      setImageError(`Chỉ được chọn tối đa ${MAX_IMAGES} ảnh.`);
-    } else {
-      setImageError(null);
-    }
-
-    const acceptedCount = finalFiles.length - imageFiles.length;
-    const newPreviews = accepted.slice(0, acceptedCount).map((file) => URL.createObjectURL(file));
-
-    setImageFiles(finalFiles);
-    setImagePreviews([...imagePreviews, ...newPreviews]);
-  };
-
-  const removeImage = (index: number) => {
-    setImagePreviews((prev) => {
-      URL.revokeObjectURL(prev[index]);
-      return prev.filter((_, i) => i !== index);
-    });
-    setImageFiles((prev) => prev.filter((_, i) => i !== index));
-    setImageError(null);
-  };
-
-  const handleQrFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('image/') || file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-      setQrImageError(`Ảnh QR không hợp lệ hoặc vượt quá ${MAX_IMAGE_SIZE_MB}MB.`);
-      return;
-    }
-    if (qrImagePreview) URL.revokeObjectURL(qrImagePreview);
-    setQrImageFile(file);
-    setQrImagePreview(URL.createObjectURL(file));
-    setQrImageError(null);
-  };
-
-  const removeQrImage = () => {
-    if (qrImagePreview) URL.revokeObjectURL(qrImagePreview);
-    setQrImageFile(null);
-    setQrImagePreview(null);
-    setQrImageError(null);
-  };
 
   const onSubmit = handleSubmit(async (data) => {
     const bankNamePreview = data.bankNameOption === OTHER_BANK_VALUE ? data.bankNameOther.trim() : data.bankNameOption;
@@ -193,18 +120,18 @@ export default function NewCampaignPage() {
       setFundingError('Vui lòng điền đầy đủ cả 3 thông tin: ngân hàng, số tài khoản, chủ tài khoản.');
       return;
     }
-    if (bankFilledCount < 3 && !qrImageFile) {
+    if (bankFilledCount < 3 && !qrImage.imageFile) {
       setFundingError('Vui lòng cung cấp ảnh QR nhận ủng hộ hoặc đầy đủ thông tin ngân hàng để nhận ủng hộ.');
       return;
     }
     setFundingError(null);
 
     let uploadedUrls: string[] = [];
-    if (imageFiles.length > 0) {
+    if (gallery.imageFiles.length > 0) {
       setUploadingImages(true);
       try {
         const formData = new FormData();
-        imageFiles.forEach((file) => formData.append('images', file));
+        gallery.imageFiles.forEach((file) => formData.append('images', file));
         const res = await api.postForm('/donations/campaigns/upload-images', formData, accessToken || undefined);
         uploadedUrls = res.urls;
       } catch (err: any) {
@@ -216,11 +143,11 @@ export default function NewCampaignPage() {
     }
 
     let qrImageUrl: string | undefined;
-    if (qrImageFile) {
+    if (qrImage.imageFile) {
       setUploadingImages(true);
       try {
         const qrFormData = new FormData();
-        qrFormData.append('images', qrImageFile);
+        qrFormData.append('images', qrImage.imageFile);
         const res = await api.postForm('/donations/campaigns/upload-images', qrFormData, accessToken || undefined);
         qrImageUrl = res.urls[0];
       } catch (err: any) {
@@ -372,24 +299,24 @@ export default function NewCampaignPage() {
             multiple
             className={styles.hiddenFileInput}
             disabled={isSubmitting || uploadingImages}
-            onChange={handleFilesSelected}
+            onChange={gallery.handleFilesSelected}
           />
-          {imageError && <p style={{ color: 'red', fontSize: 13 }}>{imageError}</p>}
+          {gallery.imageError && <p style={{ color: 'red', fontSize: 13 }}>{gallery.imageError}</p>}
           <div className={styles.imageGrid}>
-            {imagePreviews.map((src, idx) => (
+            {gallery.imagePreviews.map((src, idx) => (
               <div key={src} className={styles.imageTile}>
                 <img src={src} alt={`Ảnh ${idx + 1}`} />
                 <button
                   type="button"
                   className={styles.imageRemoveBtn}
-                  onClick={() => removeImage(idx)}
+                  onClick={() => gallery.removeNew(idx)}
                   aria-label="Xóa ảnh"
                 >
                   <X size={14} />
                 </button>
               </div>
             ))}
-            {imagePreviews.length < MAX_IMAGES && (
+            {gallery.imagePreviews.length < MAX_IMAGES && (
               <button
                 type="button"
                 className={styles.imageAddTile}
@@ -456,16 +383,16 @@ export default function NewCampaignPage() {
             accept="image/*"
             className={styles.hiddenFileInput}
             disabled={isSubmitting || uploadingImages}
-            onChange={handleQrFileSelected}
+            onChange={qrImage.handleFileSelected}
           />
-          {qrImageError && <p style={{ color: 'red', fontSize: 13 }}>{qrImageError}</p>}
-          {qrImagePreview ? (
+          {qrImage.imageError && <p style={{ color: 'red', fontSize: 13 }}>{qrImage.imageError}</p>}
+          {qrImage.imagePreview ? (
             <div className={styles.qrTile}>
-              <img src={qrImagePreview} alt="Ảnh QR" />
+              <img src={qrImage.imagePreview} alt="Ảnh QR" />
               <button
                 type="button"
                 className={styles.imageRemoveBtn}
-                onClick={removeQrImage}
+                onClick={qrImage.remove}
                 aria-label="Xóa ảnh QR"
               >
                 <X size={14} />

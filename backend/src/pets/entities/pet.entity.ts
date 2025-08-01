@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Post } from '../../posts/entities/post.entity';
@@ -44,6 +45,7 @@ export class Pet {
   @Column({ nullable: true })
   avatarUrl?: string;
 
+  @Index()
   @Column()
   ownerId: string;
 

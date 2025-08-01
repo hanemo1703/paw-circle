@@ -153,6 +153,56 @@
   flex-shrink: 0;
 }
 
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0 0;
+}
+
+.pageBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: $color-text-muted;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: $color-bg;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.pageBtnActive {
+  background: $color-primary;
+  color: white;
+
+  &:hover {
+    background: $color-primary;
+  }
+}
+
+.pageEllipsis {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-text-muted;
+}
+
 .donorName {
   flex: 1;
   font-size: 14px;

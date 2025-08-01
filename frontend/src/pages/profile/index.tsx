@@ -26,14 +26,12 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      api.get(`/posts?authorId=${user.id}`),
-      api.get(`/pets?ownerId=${user.id}`),
+      api.get(`/posts?authorId=${user.id}&limit=1`),
+      api.get(`/posts?authorId=${user.id}&type=LOST&status=RESOLVED&limit=1`),
+      api.get(`/pets?ownerId=${user.id}&limit=1`),
     ])
-      .then(([posts, pets]) => {
-        const reunited = posts.filter(
-          (p: { type: string; status: string }) => p.type === 'LOST' && p.status === 'RESOLVED',
-        ).length;
-        setStats({ postCount: posts.length, reunitedCount: reunited, petCount: pets.length });
+      .then(([posts, reunited, pets]) => {
+        setStats({ postCount: posts.total, reunitedCount: reunited.total, petCount: pets.total });
       })
       .catch(() => {
         // Best-effort only — stat chips just stay at 0 if this fails

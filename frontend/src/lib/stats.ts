@@ -15,16 +15,18 @@ export async function fetchSiteStats(): Promise<SiteStats> {
 
   try {
     const [lostResolved, adoptionOpen, campaigns] = await Promise.all([
-      api.get('/posts?type=LOST&status=RESOLVED'),
-      api.get('/posts?type=ADOPTION&status=OPEN'),
-      api.get('/donations/campaigns'),
+      api.get('/posts?type=LOST&status=RESOLVED&limit=1'),
+      // Needs the actual post bodies (to sum pets-per-post), not just a count — capped at
+      // the backend's max limit (500) so it stays a bounded query.
+      api.get('/posts?type=ADOPTION&status=OPEN&limit=500'),
+      api.get('/donations/campaigns?status=ACTIVE&limit=1'),
     ]);
-    reunitedCount = lostResolved.length;
-    pendingAdoptionCount = adoptionOpen.reduce(
+    reunitedCount = lostResolved.total;
+    pendingAdoptionCount = adoptionOpen.data.reduce(
       (sum: number, post: { pets?: unknown[] }) => sum + (post.pets?.length || 1),
       0,
     );
-    activeCampaignCount = campaigns.filter((c: { status: string }) => c.status === 'ACTIVE').length;
+    activeCampaignCount = campaigns.total;
   } catch {
     // Backend not running — callers render fallback copy
   }
