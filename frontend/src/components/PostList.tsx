@@ -419,7 +419,9 @@ export default function PostList({
                       <div className={styles.rowBody}>
                         <div className={styles.rowTop}>
                           <h3 className={styles.rowTitle}>{post.title}</h3>
-                          <span className={BADGE_CLASS[post.type]}>{BADGE_LABEL[post.type]}</span>
+                          <span className={`badge ${(post.status ?? 'OPEN') === 'OPEN' ? 'badge-status-open' : 'badge-status-done'}`}>
+                            {STATUS_LABEL[post.type][post.status ?? 'OPEN']}
+                          </span>
                         </div>
                         <div className={styles.rowMeta}>
                           {formatRelativeTime(post.createdAt)}
