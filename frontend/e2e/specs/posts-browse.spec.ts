@@ -62,20 +62,33 @@ test('pagination splits results matching the search into pages of 6', async ({
   }
 
   await authedPage.goto('/marketplace');
-  await authedPage.getByPlaceholder('Tìm theo tên, khu vực...').fill(`E2E Page Item ${suffix}`);
 
-  // The search box applies to the list on a 300ms debounce (SEARCH_DEBOUNCE_MS
-  // in PostList.tsx). Neither "row count is 6" nor "one of this run's titles
-  // is visible" is a reliable ready-signal here: the E2E DB accumulates OPEN
-  // SUPPLY posts across every previous run (see e2e/README.md — this instance
-  // has 100+ by now), sorted newest first, so this run's 7 brand-new posts
-  // land on page 1 of the *unfiltered* list too, and the *unfiltered* total
-  // is easily >12 pages — both checks can pass, and a "3" page button can
-  // exist, before the debounce has actually applied. Rather than guess how
-  // long that takes under whatever load the dev server is under, poll for
-  // the one thing that's only ever true post-filter (no page 3) with a
-  // generous timeout instead of a fixed sleep.
-  await expect(authedPage.getByRole('button', { name: '3' })).toHaveCount(0, { timeout: 20_000 });
+  // PostList.tsx paginates server-side (page/limit query params) with the search
+  // box applied on a 300ms debounce. Its effects also have a brief, self-correcting
+  // race: when `search` changes while `page` isn't already 1, the data-fetch effect
+  // can fire once using the stale `page` value before the page-reset effect corrects
+  // it and a second, correct fetch supersedes it a moment later (~200ms) — real users
+  // only see a brief flicker, but a test clicking the pager during that window can
+  // land on the wrong page. DOM-content-based readiness checks don't reliably guard
+  // against this either: this test runs serially with nothing else seeding data in
+  // between, so this run's posts are *always* the newest in the whole (100+ post)
+  // table, meaning "visible rows belong to this run" is trivially true even on the
+  // *unfiltered* page 1 — it doesn't prove filtering has actually settled. The only
+  // unambiguous signal is the network response itself: wait for the backend to
+  // confirm it filtered down to exactly our 7 posts before touching the pager.
+  const filteredResponse = authedPage.waitForResponse(async (res) => {
+    if (!res.url().includes('/api/posts') || !res.url().includes('search=') || !res.url().includes('page=1')) {
+      return false;
+    }
+    try {
+      return (await res.json()).total === 7;
+    } catch {
+      return false;
+    }
+  }, { timeout: 20_000 });
+  await authedPage.getByPlaceholder('Tìm theo tên, khu vực...').fill(`E2E Page Item ${suffix}`);
+  await filteredResponse;
+
   await expect(authedPage.locator('[class*="postRow"]')).toHaveCount(6);
 
   // exact: true — the logged-in user's name in the header button can itself
@@ -85,6 +98,7 @@ test('pagination splits results matching the search into pages of 6', async ({
 
   await page2Button.click();
   await expect(authedPage.locator('[class*="postRow"]')).toHaveCount(1);
+  await expect(authedPage.locator('[class*="postRow"] h3')).toHaveText(`E2E Page Item ${suffix}-1`);
 });
 
 test('switching to map view renders the map without console errors', async ({ authedPage, user, request, apiURL }) => {

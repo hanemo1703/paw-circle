@@ -54,3 +54,99 @@ export async function createPost(
   }
   return res.json();
 }
+
+export interface CreateCampaignOverrides {
+  title?: string;
+  description?: string;
+  status?: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+}
+
+export interface CreatedCampaign {
+  id: string;
+  title: string;
+  status: string;
+}
+
+// Seeds a donation campaign directly against the backend, same rationale as
+// createPost above: tests that aren't exercising the create form itself
+// shouldn't have to re-drive it just to get fixture data.
+//
+// DonationsService.createCampaign() rejects campaigns with no way to actually
+// receive money (neither a complete bank account nor a QR image) — a plain
+// title/description body isn't enough, so a placeholder qrImageUrl is
+// included by default (any non-empty string is accepted, same as donate()'s
+// proofImageUrl below). `category` also defaults away from the entity's own
+// default (OTHER), since OTHER requires a non-empty `categoryOther` on the
+// edit form's own client-side validation the moment it round-trips a
+// campaign that has OTHER with no categoryOther text ever set.
+export async function createCampaign(
+  request: APIRequestContext,
+  apiURL: string,
+  accessToken: string,
+  overrides: CreateCampaignOverrides = {},
+): Promise<CreatedCampaign> {
+  const suffix = uniqueSuffix();
+  const { status, ...campaignFields } = overrides;
+  const body = {
+    title: `E2E campaign ${suffix}`,
+    description: `Mô tả chiến dịch kiểm thử E2E ${suffix}.`,
+    category: 'FOOD_SUPPLIES',
+    qrImageUrl: '/uploads/donations/e2e-seed-qr.png',
+    ...campaignFields,
+  };
+
+  const res = await request.post(`${apiURL}/donations/campaigns`, {
+    data: body,
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`Failed to seed E2E campaign: ${res.status()} ${await res.text()}`);
+  }
+  const campaign: CreatedCampaign = await res.json();
+
+  if (status && status !== campaign.status) {
+    const patchRes = await request.patch(`${apiURL}/donations/campaigns/${campaign.id}`, {
+      data: { status },
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!patchRes.ok()) {
+      throw new Error(`Failed to set E2E campaign status: ${patchRes.status()} ${await patchRes.text()}`);
+    }
+    return patchRes.json();
+  }
+
+  return campaign;
+}
+
+export interface DonateOverrides {
+  amount?: number;
+  message?: string;
+  anonymous?: boolean;
+  proofImageUrl?: string;
+}
+
+// Seeds a donation directly against the backend. `proofImageUrl` is required
+// by CreateDonationDto but isn't validated as a real uploaded path, so any
+// non-empty string is accepted here.
+export async function donate(
+  request: APIRequestContext,
+  apiURL: string,
+  accessToken: string,
+  campaignId: string,
+  overrides: DonateOverrides = {},
+) {
+  const body = {
+    amount: 50_000,
+    proofImageUrl: '/uploads/donations/e2e-seed-proof.png',
+    ...overrides,
+  };
+
+  const res = await request.post(`${apiURL}/donations/campaigns/${campaignId}/donate`, {
+    data: body,
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`Failed to seed E2E donation: ${res.status()} ${await res.text()}`);
+  }
+  return res.json();
+}
