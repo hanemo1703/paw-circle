@@ -40,12 +40,17 @@ export default function MessagesInboxPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    setCheckingAuth(false);
+  }, []);
+
+  useEffect(() => {
+    if (!checkingAuth && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [checkingAuth, isAuthenticated, router]);
 
   useEffect(() => {
     if (!user || !accessToken) return;

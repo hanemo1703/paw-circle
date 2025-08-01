@@ -16,12 +16,17 @@ export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const [stats, setStats] = useState<StatSummary>({ postCount: 0, reunitedCount: 0, petCount: 0 });
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    setCheckingAuth(false);
+  }, []);
+
+  useEffect(() => {
+    if (!checkingAuth && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [checkingAuth, isAuthenticated, router]);
 
   useEffect(() => {
     if (!user) return;

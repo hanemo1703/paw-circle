@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../lib/auth';
 import PostList from '../../components/PostList';
@@ -6,14 +6,19 @@ import PostList from '../../components/PostList';
 export default function MyPostsPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    setCheckingAuth(false);
+  }, []);
+
+  useEffect(() => {
+    if (!checkingAuth && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [checkingAuth, isAuthenticated, router]);
 
-  if (!user) {
+  if (checkingAuth || !user) {
     return null;
   }
 
