@@ -2,6 +2,7 @@
   "name": "petconnect-backend",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "yarn@4.17.0",
   "scripts": {
     "build": "nest build",
     "start": "nest start",
