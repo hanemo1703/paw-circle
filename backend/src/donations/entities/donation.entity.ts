@@ -42,6 +42,6 @@ export class Donation {
   @ManyToOne(() => DonationCampaign, (campaign) => campaign.donations, { onDelete: 'CASCADE' })
   campaign: DonationCampaign;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

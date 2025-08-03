@@ -35,6 +35,6 @@ export class Message {
   isRead: boolean;
 
   @Index()
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

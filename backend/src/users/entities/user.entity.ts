@@ -66,10 +66,10 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   resetPasswordExpires?: Date | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 
   @OneToMany(() => Pet, (pet) => pet.owner)

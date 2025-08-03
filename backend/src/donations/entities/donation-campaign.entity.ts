@@ -98,9 +98,9 @@ export class DonationCampaign {
   @OneToMany(() => Donation, (donation) => donation.campaign)
   donations: Donation[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }
