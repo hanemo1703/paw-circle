@@ -1,5 +1,5 @@
 import { test, expect, registerAndLogin, seedAuthedSession } from '../fixtures';
-import { createPost } from '../helpers/api';
+import { createPost, sendMessage } from '../helpers/api';
 import { uniqueSuffix } from '../helpers/random';
 import { gotoMessagesViaHeader } from '../helpers/nav';
 
@@ -76,4 +76,39 @@ test('sending a message live-updates the recipient\'s open inbox, and reading it
   await expect(peerInboxPage.locator('[class*="unreadDot"]')).toHaveCount(0, { timeout: 10_000 });
 
   await peerContext.close();
+});
+
+test('scrolling to the top of a long thread loads older message history', async ({
+  authedPage,
+  user,
+  request,
+  apiURL,
+}) => {
+  const recipient = await registerAndLogin(request);
+  const suffix = uniqueSuffix();
+
+  // Default thread page size is 50 (MessagesService.conversation) — seed 55 so
+  // the oldest 5 only load on scroll-up.
+  for (let i = 1; i <= 55; i++) {
+    await sendMessage(request, apiURL, user.accessToken, recipient.authUser.id, `E2E msg ${suffix} #${i}`);
+  }
+
+  await gotoMessagesViaHeader(authedPage);
+  await authedPage.getByText(`E2E msg ${suffix} #55`).click();
+  await expect(authedPage).toHaveURL(`/messages/${recipient.authUser.id}`);
+
+  // The newest 50 of the 55 seeded messages are #6-#55 — #1-#5 only load on scroll-up.
+  await expect(authedPage.getByText(`E2E msg ${suffix} #6`, { exact: true })).toBeVisible();
+  await expect(authedPage.getByText(`E2E msg ${suffix} #1`, { exact: true })).toHaveCount(0);
+
+  const olderHistoryResponse = authedPage.waitForResponse(
+    (res) => res.url().includes(`/messages/${recipient.authUser.id}`) && res.url().includes('before='),
+    { timeout: 10_000 },
+  );
+  await authedPage.locator('[class*="msgList"]').evaluate((el) => {
+    el.scrollTop = 0;
+  });
+  await olderHistoryResponse;
+
+  await expect(authedPage.getByText(`E2E msg ${suffix} #1`, { exact: true })).toBeVisible();
 });

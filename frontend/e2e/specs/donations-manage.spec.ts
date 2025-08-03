@@ -5,6 +5,13 @@ import { TEST_PNG_BUFFER } from '../helpers/testImage';
 
 const TEST_IMAGE_FILE = { name: 'e2e-test.png', mimeType: 'image/png', buffer: TEST_PNG_BUFFER };
 
+async function fillMinimalCampaign(page: import('@playwright/test').Page, title: string) {
+  await page.locator('#title').fill(title);
+  await page.locator('#description').fill('Mô tả chiến dịch kiểm thử E2E.');
+  await page.locator('#qrImage').setInputFiles(TEST_IMAGE_FILE);
+  await page.getByRole('checkbox', { name: /Tôi xác nhận thông tin trên là đúng sự thật/ }).check();
+}
+
 test('creating a campaign via the real form validates funding info and redirects to the detail page', async ({
   authedPage,
 }) => {
@@ -141,4 +148,87 @@ test('a non-owner sees a message-the-author action instead of owner controls', a
   await expect(viewerPage).toHaveURL(`/messages/${user.authUser.id}`);
 
   await viewerContext.close();
+});
+
+test('creating a campaign as an organization requires an organization link', async ({ authedPage }) => {
+  const title = `E2E Org Campaign ${uniqueSuffix()}`;
+
+  await authedPage.goto('/donations/new');
+  await authedPage.getByRole('radio', { name: 'Tổ chức / mái ấm' }).check();
+  await fillMinimalCampaign(authedPage, title);
+
+  await authedPage.getByRole('button', { name: 'Đăng chiến dịch' }).click();
+  await expect(authedPage.getByText('Vui lòng nhập link tổ chức.')).toBeVisible();
+
+  await authedPage
+    .getByPlaceholder('Facebook, website hoặc trang xác thực của tổ chức')
+    .fill('https://facebook.com/e2e-shelter');
+  await authedPage.getByRole('button', { name: 'Đăng chiến dịch' }).click();
+
+  await expect(authedPage).toHaveURL(/\/donations\/[^/]+$/);
+  await expect(authedPage.getByRole('heading', { name: title })).toBeVisible();
+});
+
+test('selecting campaign category "Khác" requires a free-text category', async ({ authedPage }) => {
+  const title = `E2E Category Other Campaign ${uniqueSuffix()}`;
+
+  await authedPage.goto('/donations/new');
+  await fillMinimalCampaign(authedPage, title);
+  await authedPage.getByRole('radio', { name: 'Khác', exact: true }).check();
+
+  await authedPage.getByRole('button', { name: 'Đăng chiến dịch' }).click();
+  await expect(authedPage.getByText('Vui lòng nhập loại chiến dịch.')).toBeVisible();
+
+  await authedPage.getByPlaceholder('Nhập loại chiến dịch').fill('Cứu trợ thiên tai');
+  await authedPage.getByRole('button', { name: 'Đăng chiến dịch' }).click();
+
+  await expect(authedPage).toHaveURL(/\/donations\/[^/]+$/);
+  await expect(authedPage.getByRole('heading', { name: title })).toBeVisible();
+});
+
+test('campaign gallery images can be added, removed, and show up on the detail page', async ({ authedPage }) => {
+  const title = `E2E Gallery Campaign ${uniqueSuffix()}`;
+  const galleryFiles = [
+    { name: 'e2e-gallery-1.png', mimeType: 'image/png', buffer: TEST_PNG_BUFFER },
+    { name: 'e2e-gallery-2.png', mimeType: 'image/png', buffer: TEST_PNG_BUFFER },
+  ];
+
+  await authedPage.goto('/donations/new');
+  await fillMinimalCampaign(authedPage, title);
+
+  await authedPage.locator('#images').setInputFiles(galleryFiles);
+  await expect(authedPage.locator('[class*="imageTile"]')).toHaveCount(2);
+
+  await authedPage.getByRole('button', { name: 'Xóa ảnh', exact: true }).first().click();
+  await expect(authedPage.locator('[class*="imageTile"]')).toHaveCount(1);
+
+  await authedPage.getByRole('button', { name: 'Đăng chiến dịch' }).click();
+  await expect(authedPage).toHaveURL(/\/donations\/[^/]+$/);
+
+  // A real image was uploaded and persisted — the main image no longer falls
+  // back to the placeholder logo.
+  const mainImage = authedPage.getByRole('img', { name: title });
+  await expect(mainImage).toBeVisible();
+  await expect(mainImage).not.toHaveAttribute('src', '/logo.jpg');
+});
+
+test('contact info on the detail page is hidden until "Liên hệ trực tiếp" is clicked', async ({
+  authedPage,
+  user,
+  request,
+  apiURL,
+}) => {
+  const campaign = await createCampaign(request, apiURL, user.accessToken, {
+    contactPhone: '0909123456',
+    contactEmail: 'e2e-contact@example.com',
+    pickupAddress: '123 Đường E2E, Quận 1',
+  });
+
+  await authedPage.goto(`/donations/${campaign.id}`);
+  await expect(authedPage.getByText('0909123456')).toHaveCount(0);
+
+  await authedPage.getByRole('button', { name: 'Liên hệ trực tiếp với người đăng' }).click();
+  await expect(authedPage.getByText('0909123456')).toBeVisible();
+  await expect(authedPage.getByText('e2e-contact@example.com')).toBeVisible();
+  await expect(authedPage.getByText('123 Đường E2E, Quận 1')).toBeVisible();
 });

@@ -59,6 +59,11 @@ export interface CreateCampaignOverrides {
   title?: string;
   description?: string;
   status?: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  targetAmount?: number;
+  deadline?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  pickupAddress?: string;
 }
 
 export interface CreatedCampaign {
@@ -147,6 +152,26 @@ export async function donate(
   });
   if (!res.ok()) {
     throw new Error(`Failed to seed E2E donation: ${res.status()} ${await res.text()}`);
+  }
+  return res.json();
+}
+
+// Seeds a single message directly against the backend — used to bulk-create
+// long threads (e.g. for infinite-scroll-up tests) without driving the
+// composer UI once per message.
+export async function sendMessage(
+  request: APIRequestContext,
+  apiURL: string,
+  accessToken: string,
+  receiverId: string,
+  content: string,
+) {
+  const res = await request.post(`${apiURL}/messages/${receiverId}`, {
+    data: { content },
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`Failed to seed E2E message: ${res.status()} ${await res.text()}`);
   }
   return res.json();
 }

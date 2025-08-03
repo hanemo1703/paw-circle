@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures';
-import { createCampaign } from '../helpers/api';
+import { createCampaign, donate } from '../helpers/api';
 import { uniqueSuffix } from '../helpers/random';
 
 // The E2E Postgres accumulates campaigns across runs (see e2e/README.md), so
@@ -98,4 +98,70 @@ test('pagination splits campaigns matching the search into pages of 6', async ({
   await page2Button.click();
   await expect(authedPage.locator('a[class*="card"]')).toHaveCount(1);
   await expect(authedPage.locator('a[class*="card"] h3')).toHaveText(`E2E Page Campaign ${suffix}-1`);
+});
+
+test('sort dropdown reorders campaigns by deadline and by funding progress', async ({
+  authedPage,
+  user,
+  request,
+  apiURL,
+}) => {
+  const suffix = uniqueSuffix();
+  const titleA = `E2E Sort Campaign A ${suffix}`;
+  const titleB = `E2E Sort Campaign B ${suffix}`;
+
+  const soon = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const far = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // A: created first (so it's NOT "newest"), but has a near deadline and high
+  // funding progress — flips the default order under both alternate sorts.
+  const campaignA = await createCampaign(request, apiURL, user.accessToken, {
+    title: titleA,
+    deadline: soon,
+    targetAmount: 100_000,
+  });
+  await donate(request, apiURL, user.accessToken, campaignA.id, { amount: 90_000 });
+  // B: created second (so it IS "newest"), but has a far-off deadline and no
+  // donations yet.
+  await createCampaign(request, apiURL, user.accessToken, {
+    title: titleB,
+    deadline: far,
+    targetAmount: 100_000,
+  });
+
+  await authedPage.goto('/donations');
+  await authedPage.getByPlaceholder('Tìm chiến dịch theo tên, khu vực...').fill(suffix);
+  await expect(authedPage.getByText(titleA)).toBeVisible({ timeout: 5000 });
+
+  // Default sort is "Mới nhất" (createdAt DESC) — B (created after A) first.
+  await expect(authedPage.locator('a[class*="card"] h3')).toHaveText([titleB, titleA]);
+
+  async function selectSort(label: string, sortParam: string) {
+    const response = authedPage.waitForResponse(async (res) => {
+      if (
+        !res.url().includes('/donations/campaigns') ||
+        !res.url().includes(`sort=${sortParam}`) ||
+        !res.url().includes('search=')
+      ) {
+        return false;
+      }
+      try {
+        return (await res.json()).total === 2;
+      } catch {
+        return false;
+      }
+    }, { timeout: 10_000 });
+    // The trigger's accessible name is whichever sort option is currently selected.
+    await authedPage.getByRole('button', { name: /Mới nhất|Sắp hết hạn|Gần đạt mục tiêu/ }).click();
+    await authedPage.getByRole('listbox').getByRole('button', { name: label, exact: true }).click();
+    await response;
+  }
+
+  // Deadline ASC (NULLS LAST) — A's near deadline sorts before B's far one.
+  await selectSort('Sắp hết hạn', 'deadline');
+  await expect(authedPage.locator('a[class*="card"] h3')).toHaveText([titleA, titleB]);
+
+  // Progress DESC — A's 90% funded sorts before B's 0%.
+  await selectSort('Gần đạt mục tiêu', 'progress');
+  await expect(authedPage.locator('a[class*="card"] h3')).toHaveText([titleA, titleB]);
 });
