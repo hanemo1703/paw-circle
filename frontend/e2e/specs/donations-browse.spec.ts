@@ -51,6 +51,33 @@ test('status filter chips control which campaigns are visible', async ({
   await expect(authedPage.getByText(doneTitle)).toBeVisible();
 });
 
+test('category filter chips control which campaigns are visible', async ({
+  authedPage,
+  user,
+  request,
+  apiURL,
+}) => {
+  const suffix = uniqueSuffix();
+  const foodTitle = `E2E Campaign Food ${suffix}`;
+  const medicalTitle = `E2E Campaign Medical ${suffix}`;
+
+  await createCampaign(request, apiURL, user.accessToken, { title: foodTitle, category: 'FOOD_SUPPLIES' });
+  await createCampaign(request, apiURL, user.accessToken, { title: medicalTitle, category: 'MEDICAL' });
+
+  await authedPage.goto('/donations');
+  await authedPage.getByPlaceholder('Tìm chiến dịch theo tên, khu vực...').fill(suffix);
+
+  // All 3 categories are checked by default (unlike status, which defaults to
+  // ACTIVE-only) — both show up without touching any chip.
+  await expect(authedPage.getByText(foodTitle)).toBeVisible({ timeout: 5000 });
+  await expect(authedPage.getByText(medicalTitle)).toBeVisible();
+
+  await authedPage.getByText('Thức ăn - Cát mèo', { exact: true }).click();
+
+  await expect(authedPage.getByText(medicalTitle)).toBeVisible();
+  await expect(authedPage.getByText(foodTitle)).toHaveCount(0);
+});
+
 test('pagination splits campaigns matching the search into pages of 6', async ({
   authedPage,
   user,

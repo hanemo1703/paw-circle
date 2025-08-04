@@ -59,6 +59,7 @@ export interface CreateCampaignOverrides {
   title?: string;
   description?: string;
   status?: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  category?: 'FOOD_SUPPLIES' | 'MEDICAL' | 'OTHER';
   targetAmount?: number;
   deadline?: string;
   contactPhone?: string;

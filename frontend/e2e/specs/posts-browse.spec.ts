@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures';
 import { createPost } from '../helpers/api';
 import { uniqueSuffix } from '../helpers/random';
+import { mockRegionApi } from '../helpers/mockRegionApi';
 
 // The E2E Postgres accumulates posts across runs (see e2e/README.md), so these
 // tests never assert on the *total* number of posts in a list — only on
@@ -101,6 +102,62 @@ test('pagination splits results matching the search into pages of 6', async ({
   await expect(authedPage.locator('[class*="postRow"] h3')).toHaveText(`E2E Page Item ${suffix}-1`);
 });
 
+test('species filter chips control which posts are visible', async ({ authedPage, user, request, apiURL }) => {
+  const suffix = uniqueSuffix();
+  const catTitle = `E2E Cat Species ${suffix}`;
+  const dogTitle = `E2E Dog Species ${suffix}`;
+  await createPost(request, apiURL, user.accessToken, { type: 'LOST', title: catTitle, species: 'Mèo' });
+  await createPost(request, apiURL, user.accessToken, { type: 'LOST', title: dogTitle, species: 'Chó' });
+
+  await authedPage.goto('/lost-found');
+  await authedPage.getByPlaceholder('Tìm theo tên, khu vực...').fill(suffix);
+
+  // No species filter is selected by default (shows every species).
+  await expect(authedPage.getByText(catTitle)).toBeVisible({ timeout: 5000 });
+  await expect(authedPage.getByText(dogTitle)).toBeVisible();
+
+  await authedPage.getByText('Chó', { exact: true }).click();
+
+  await expect(authedPage.getByText(dogTitle)).toBeVisible();
+  await expect(authedPage.getByText(catTitle)).toHaveCount(0);
+});
+
+test('area filter narrows results, and "Xóa bộ lọc" resets every active filter', async ({
+  authedPage,
+  user,
+  request,
+  apiURL,
+}) => {
+  const suffix = uniqueSuffix();
+  const inAreaTitle = `E2E In Area ${suffix}`;
+  const outAreaTitle = `E2E Out Area ${suffix}`;
+  await createPost(request, apiURL, user.accessToken, { type: 'LOST', title: inAreaTitle, provinceCode: 9001 });
+  await createPost(request, apiURL, user.accessToken, { type: 'LOST', title: outAreaTitle });
+
+  await mockRegionApi(authedPage);
+  await authedPage.goto('/lost-found');
+  await authedPage.getByPlaceholder('Tìm theo tên, khu vực...').fill(suffix);
+  await expect(authedPage.getByText(inAreaTitle)).toBeVisible({ timeout: 5000 });
+  await expect(authedPage.getByText(outAreaTitle)).toBeVisible();
+
+  // "Xóa bộ lọc" is already showing at this point since the search box has
+  // text in it (hasActiveFilters also considers the search input, not just
+  // the chip/area filters) — clearFilters() resets all four together below.
+  await authedPage.getByRole('button', { name: 'Tất cả' }).click();
+  await authedPage.getByRole('listbox').getByRole('button', { name: 'Tỉnh E2E Test A' }).click();
+  await authedPage.keyboard.press('Escape');
+
+  await expect(authedPage.getByText(inAreaTitle)).toBeVisible();
+  await expect(authedPage.getByText(outAreaTitle)).toHaveCount(0);
+
+  const clearFiltersButton = authedPage.getByRole('button', { name: 'Xóa bộ lọc' });
+  await expect(clearFiltersButton).toBeVisible();
+  await clearFiltersButton.click();
+
+  await expect(authedPage.getByText(outAreaTitle)).toBeVisible();
+  await expect(authedPage.getByRole('button', { name: 'Xóa bộ lọc' })).toHaveCount(0);
+});
+
 test('switching to map view renders the map without console errors', async ({ authedPage, user, request, apiURL }) => {
   // PostsMapView shows a "no located posts" message instead of the map
   // itself when nothing in the filtered list has coordinates.
@@ -120,4 +177,44 @@ test('switching to map view renders the map without console errors', async ({ au
 
   await expect(authedPage.locator('.leaflet-container')).toBeVisible();
   expect(consoleErrors).toEqual([]);
+});
+
+test('clicking a map pin opens a popup that links to the post detail page', async ({
+  authedPage,
+  user,
+  request,
+  apiURL,
+}) => {
+  const suffix = uniqueSuffix();
+  const title = `E2E Map Pin ${suffix}`;
+  const post = await createPost(request, apiURL, user.accessToken, {
+    type: 'TRADE',
+    title,
+    latitude: 21.028511,
+    longitude: 105.804817,
+  });
+
+  await authedPage.goto('/trade');
+  // Filter down to just this post first — the map otherwise plots every
+  // located post accumulated across E2E runs, and ".first()" marker below
+  // would be arbitrary (whichever Leaflet happens to layer first) instead of
+  // deterministically this test's own post.
+  await authedPage.getByPlaceholder('Tìm theo tên, khu vực...').fill(suffix);
+  await expect(authedPage.getByText(title)).toBeVisible({ timeout: 5000 });
+
+  await authedPage.getByRole('button', { name: 'Bản đồ' }).click();
+  await expect(authedPage.locator('.leaflet-container')).toBeVisible();
+  // The map does an animated pan/zoom (setView/fitBounds) to frame the pin(s)
+  // right after mounting — clicking mid-animation can miss, since Leaflet
+  // repositions the marker during the CSS transition. Its default duration is
+  // ~250ms; wait it out before interacting.
+  await authedPage.waitForTimeout(600);
+
+  // force: true — the divIcon's inline SVG paths intercept pointer events at
+  // the exact center point that Playwright's actionability check targets.
+  await authedPage.locator('.leaflet-marker-icon').first().click({ force: true });
+  await expect(authedPage.getByText(title)).toBeVisible();
+
+  await authedPage.getByRole('link', { name: 'Xem chi tiết' }).click();
+  await expect(authedPage).toHaveURL(`/posts/${post.id}`);
 });

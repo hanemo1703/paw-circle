@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures';
 
-const PUBLIC_PAGES = ['/', '/about', '/contact', '/lost-found', '/adoption', '/marketplace', '/trade'];
+const PUBLIC_PAGES = ['/', '/about', '/contact', '/lost-found', '/adoption', '/marketplace', '/trade', '/donations'];
 
 for (const path of PUBLIC_PAGES) {
   test(`${path} renders with header and footer, no console errors`, async ({ page }) => {

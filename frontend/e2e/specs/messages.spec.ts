@@ -112,3 +112,26 @@ test('scrolling to the top of a long thread loads older message history', async 
 
   await expect(authedPage.getByText(`E2E msg ${suffix} #1`, { exact: true })).toBeVisible();
 });
+
+test('inbox pagination splits conversations into pages of 20', async ({ authedPage, user, request, apiURL }) => {
+  // Conversations are grouped by counterpart, not by message count — 20/page
+  // needs 21 distinct partners, not 21 messages to the same person.
+  const partners = await Promise.all(Array.from({ length: 21 }, () => registerAndLogin(request)));
+  await Promise.all(
+    partners.map((partner) =>
+      sendMessage(request, apiURL, user.accessToken, partner.authUser.id, 'E2E inbox pagination seed'),
+    ),
+  );
+
+  await gotoMessagesViaHeader(authedPage);
+
+  await expect(authedPage.locator('[class*="msgRow"]')).toHaveCount(20);
+
+  // exact: true — the logged-in user's name in the header button can itself
+  // contain "2" as a substring, colliding with the page-number button.
+  const page2Button = authedPage.getByRole('button', { name: '2', exact: true });
+  await expect(page2Button).toBeVisible();
+  await page2Button.click();
+
+  await expect(authedPage.locator('[class*="msgRow"]')).toHaveCount(1);
+});

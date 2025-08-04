@@ -1,4 +1,5 @@
 import { test, expect, registerAndLogin } from '../fixtures';
+import { createCampaign, donate } from '../helpers/api';
 import { uniqueSuffix } from '../helpers/random';
 
 // Sends a message directly via the backend API (rather than driving a second
@@ -47,6 +48,33 @@ test('the notifications bell shows a new message, and opening it navigates and m
 
   await authedPage.getByText(`${sender.name} đã gửi cho bạn một tin nhắn mới`).click();
   await expect(authedPage).toHaveURL(`/messages/${sender.authUser.id}`);
+  await expect(bellButton.locator('[class*="unreadBadge"]')).toHaveCount(0);
+});
+
+test('a donation to your campaign shows a DONATION-type notification, and opening it navigates and marks it read', async ({
+  authedPage,
+  user,
+  request,
+  apiURL,
+}) => {
+  const donor = await registerAndLogin(request);
+  const campaign = await createCampaign(request, apiURL, user.accessToken);
+  const bellButton = authedPage.getByRole('button', { name: 'Thông báo' });
+
+  await authedPage.goto('/');
+  await expect(bellButton).toBeVisible();
+  await authedPage.waitForResponse((res) => res.url().includes('/notifications') && res.request().method() === 'GET');
+
+  await donate(request, apiURL, donor.accessToken, campaign.id, { amount: 50_000 });
+
+  await expect(bellButton.locator('[class*="unreadBadge"]')).toHaveText('1', { timeout: 10_000 });
+
+  const content = `${donor.name} vừa ủng hộ 50.000đ cho chiến dịch "${campaign.title}"`;
+  await bellButton.click();
+  await expect(authedPage.getByText(content)).toBeVisible();
+
+  await authedPage.getByText(content).click();
+  await expect(authedPage).toHaveURL(`/donations/${campaign.id}`);
   await expect(bellButton.locator('[class*="unreadBadge"]')).toHaveCount(0);
 });
 

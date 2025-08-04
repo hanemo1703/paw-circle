@@ -1,5 +1,5 @@
 import { test, expect, registerAndLogin, seedAuthedSession } from '../fixtures';
-import { createCampaign } from '../helpers/api';
+import { createCampaign, donate } from '../helpers/api';
 import { uniqueSuffix } from '../helpers/random';
 import { TEST_PNG_BUFFER } from '../helpers/testImage';
 
@@ -75,6 +75,55 @@ test('donating validates the amount and proof image, then updates the donor coun
 
   await expect(authedPage.getByRole('status')).toHaveText('Cảm ơn bạn đã ủng hộ chiến dịch!');
   await expect(authedPage.getByText('1 người đã ủng hộ')).toBeVisible();
+});
+
+test('donor list paginates when a campaign has more than 15 donations', async ({
+  authedPage,
+  user,
+  request,
+  apiURL,
+}) => {
+  const campaign = await createCampaign(request, apiURL, user.accessToken);
+  // Same donor for all 16 — DonationsService.donate() has no per-donor
+  // dedupe/limit, and this only exercises pagination mechanics, not identity.
+  await Promise.all(
+    Array.from({ length: 16 }, () => donate(request, apiURL, user.accessToken, campaign.id, { amount: 10_000 })),
+  );
+
+  await authedPage.goto(`/donations/${campaign.id}`);
+  await expect(authedPage.getByText('16 người đã ủng hộ')).toBeVisible();
+  await expect(authedPage.locator('[class*="donorRow"]')).toHaveCount(15);
+
+  // exact: true — the logged-in user's name in the header button can itself
+  // contain "2" as a substring, colliding with the page-number button.
+  const page2Button = authedPage.getByRole('button', { name: '2', exact: true });
+  await expect(page2Button).toBeVisible();
+  await page2Button.click();
+
+  await expect(authedPage.locator('[class*="donorRow"]')).toHaveCount(1);
+});
+
+test('an anonymous donation with a message shows "Người ủng hộ ẩn danh" in the donor list', async ({
+  authedPage,
+  user,
+  request,
+  apiURL,
+}) => {
+  const campaign = await createCampaign(request, apiURL, user.accessToken);
+
+  await authedPage.goto(`/donations/${campaign.id}`);
+  await authedPage.getByRole('button', { name: 'Tôi đã chuyển khoản' }).click();
+  await authedPage.locator('#donateAmount').fill('50000');
+  await authedPage.locator('#donateMessage').fill('Cố lên nhé!');
+  await authedPage.getByRole('checkbox', { name: 'Ủng hộ ẩn danh' }).check();
+  await authedPage.locator('#proofImage').setInputFiles(TEST_IMAGE_FILE);
+  await authedPage.getByRole('button', { name: 'Xác nhận' }).click();
+
+  await expect(authedPage.getByRole('status')).toHaveText('Cảm ơn bạn đã ủng hộ chiến dịch!');
+
+  const donorCard = authedPage.locator('[class*="donorCard"]');
+  await expect(donorCard.getByText('Người ủng hộ ẩn danh')).toBeVisible();
+  await expect(donorCard.getByText(user.name)).toHaveCount(0);
 });
 
 test('owner can mark a campaign completed or closed, which hides the donate button', async ({
