@@ -59,10 +59,6 @@ export class CreatePostDto {
 
   @IsOptional()
   @IsString()
-  petId?: string;
-
-  @IsOptional()
-  @IsString()
   @MaxLength(100)
   species?: string;
 

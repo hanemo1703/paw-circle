@@ -8,7 +8,6 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { Pet } from '../../pets/entities/pet.entity';
 
 export enum PostType {
   LOST = 'LOST',
@@ -115,12 +114,6 @@ export class Post {
 
   @ManyToOne(() => User, (user) => user.posts)
   author: User;
-
-  @Column({ nullable: true })
-  petId?: string;
-
-  @ManyToOne(() => Pet, (pet) => pet.posts, { nullable: true })
-  pet?: Pet;
 
   @Index()
   @CreateDateColumn({ type: 'timestamptz' })

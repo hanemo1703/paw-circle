@@ -63,10 +63,6 @@ export class UpdatePostDto {
 
   @IsOptional()
   @IsString()
-  petId?: string;
-
-  @IsOptional()
-  @IsString()
   @MaxLength(100)
   species?: string;
 

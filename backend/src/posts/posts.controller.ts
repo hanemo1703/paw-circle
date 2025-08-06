@@ -64,6 +64,7 @@ export class PostsController {
   // Called from map view only (not findAll) to backfill approximate pins for
   // legacy posts that only have a text address, so ordinary list-page loads
   // never pay for the Nominatim round-trips this triggers.
+  @UseGuards(JwtAuthGuard)
   @HttpPost('geocode-missing')
   geocodeMissing(@Body() dto: GeocodeMissingDto) {
     return this.postsService.geocodeMissing(dto.ids);

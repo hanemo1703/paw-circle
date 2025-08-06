@@ -6,7 +6,6 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { Pet } from '../../pets/entities/pet.entity';
 import { Post } from '../../posts/entities/post.entity';
 import { DonationCampaign } from '../../donations/entities/donation-campaign.entity';
 import { Donation } from '../../donations/entities/donation.entity';
@@ -71,9 +70,6 @@ export class User {
 
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
-
-  @OneToMany(() => Pet, (pet) => pet.owner)
-  pets: Pet[];
 
   @OneToMany(() => Post, (post) => post.author)
   posts: Post[];

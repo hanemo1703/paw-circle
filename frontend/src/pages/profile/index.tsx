@@ -9,13 +9,12 @@ import styles from './index.module.scss';
 interface StatSummary {
   postCount: number;
   reunitedCount: number;
-  petCount: number;
 }
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
-  const [stats, setStats] = useState<StatSummary>({ postCount: 0, reunitedCount: 0, petCount: 0 });
+  const [stats, setStats] = useState<StatSummary>({ postCount: 0, reunitedCount: 0 });
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
@@ -33,10 +32,9 @@ export default function ProfilePage() {
     Promise.all([
       api.get(`/posts?authorId=${user.id}&limit=1`),
       api.get(`/posts?authorId=${user.id}&type=LOST&status=RESOLVED&limit=1`),
-      api.get(`/pets?ownerId=${user.id}&limit=1`),
     ])
-      .then(([posts, reunited, pets]) => {
-        setStats({ postCount: posts.total, reunitedCount: reunited.total, petCount: pets.total });
+      .then(([posts, reunited]) => {
+        setStats({ postCount: posts.total, reunitedCount: reunited.total });
       })
       .catch(() => {
         // Best-effort only — stat chips just stay at 0 if this fails
@@ -66,10 +64,6 @@ export default function ProfilePage() {
           <div className={styles.statChip}>
             <div className={styles.statNum}>{stats.reunitedCount}</div>
             <div className={styles.statLabel}>Đoàn tụ</div>
-          </div>
-          <div className={styles.statChip}>
-            <div className={styles.statNum}>{stats.petCount}</div>
-            <div className={styles.statLabel}>Thú cưng</div>
           </div>
         </div>
 
