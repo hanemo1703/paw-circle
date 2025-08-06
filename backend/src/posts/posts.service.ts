@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, Repository } from 'typeorm';
 import { AdoptionPetStatus, Post, PostStatus, PostType } from './entities/post.entity';
+import { SavedPost } from './entities/saved-post.entity';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { QueryPostDto } from './dto/query-post.dto';
@@ -24,7 +25,10 @@ function sanitizePublicUser(user?: { password?: string; showPhonePublicly?: bool
 
 @Injectable()
 export class PostsService {
-  constructor(@InjectRepository(Post) private postsRepo: Repository<Post>) {}
+  constructor(
+    @InjectRepository(Post) private postsRepo: Repository<Post>,
+    @InjectRepository(SavedPost) private savedPostsRepo: Repository<SavedPost>,
+  ) {}
 
   async create(authorId: string, dto: CreatePostDto) {
     // For multi-pet ADOPTION posts, backfill the scalar species/breed/... fields from
@@ -75,6 +79,9 @@ export class PostsService {
     }
     if (query.authorId) {
       qb.andWhere('post.authorId = :authorId', { authorId: query.authorId });
+    }
+    if (query.savedBy) {
+      qb.innerJoin(SavedPost, 'sp', 'sp.postId = post.id AND sp.userId = :savedBy', { savedBy: query.savedBy });
     }
 
     // Matches PostList.tsx's status chips, which pick specific (type, status) combos
@@ -223,6 +230,25 @@ export class PostsService {
     }
 
     return resolved;
+  }
+
+  async save(userId: string, postId: string) {
+    const post = await this.postsRepo.findOne({ where: { id: postId } });
+    if (!post) {
+      throw new NotFoundException('Không tìm thấy bài đăng');
+    }
+    const existing = await this.savedPostsRepo.findOne({ where: { userId, postId } });
+    if (existing) return existing;
+    return this.savedPostsRepo.save(this.savedPostsRepo.create({ userId, postId }));
+  }
+
+  async unsave(userId: string, postId: string) {
+    await this.savedPostsRepo.delete({ userId, postId });
+  }
+
+  async isSaved(userId: string, postId: string) {
+    const existing = await this.savedPostsRepo.findOne({ where: { userId, postId } });
+    return { saved: !!existing };
   }
 
   async remove(id: string, userId: string) {

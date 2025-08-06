@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { GetServerSideProps } from 'next';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { MapPin, MessageCircle, Pencil, Phone, Share2, Trash2 } from 'lucide-react';
+import { Bookmark, MapPin, MessageCircle, Pencil, Phone, Share2, Trash2 } from 'lucide-react';
 import { api, toAssetUrl } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { formatRelativeTime } from '../../../lib/format';
@@ -116,9 +116,27 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
   const [pendingStatus, setPendingStatus] = useState<PostStatus | null>(null);
   const [pets, setPets] = useState<AdoptionPetInfo[]>(post?.pets ?? []);
   const [updatingPetIndex, setUpdatingPetIndex] = useState<number | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [togglingSave, setTogglingSave] = useState(false);
   const deleteDialog = useConfirmDialog();
   const { showToast, toastNode } = useToast();
   const { user, accessToken } = useAuth();
+
+  useEffect(() => {
+    if (!user || !post) return;
+    let cancelled = false;
+    api
+      .get(`/posts/${post.id}/save`, accessToken || undefined)
+      .then((res: { saved: boolean }) => {
+        if (!cancelled) setSaved(res.saved);
+      })
+      .catch(() => {
+        // Best-effort — bookmark just shows as "not saved" if this fails
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, post?.id, accessToken]);
 
   if (!post) {
     return (
@@ -176,6 +194,27 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
     } catch (err: any) {
       deleteDialog.close();
       showToast(err.message || 'Xóa bài đăng thất bại.', 'error');
+    }
+  };
+
+  const handleToggleSave = async () => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    setTogglingSave(true);
+    try {
+      if (saved) {
+        await api.delete(`/posts/${post.id}/save`, accessToken || undefined);
+        setSaved(false);
+      } else {
+        await api.post(`/posts/${post.id}/save`, {}, accessToken || undefined);
+        setSaved(true);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Thao tác thất bại.', 'error');
+    } finally {
+      setTogglingSave(false);
     }
   };
 
@@ -425,9 +464,20 @@ export default function PostDetailPage({ post, authorPostCount }: Props) {
             </div>
           )}
 
-          <button type="button" className={styles.shareBtn} onClick={handleShare}>
-            <Share2 size={14} /> Chia sẻ
-          </button>
+          <div className={styles.actionRow}>
+            <button
+              type="button"
+              className={`${styles.shareBtn} ${saved ? styles.shareBtnActive : ''}`}
+              onClick={handleToggleSave}
+              disabled={togglingSave}
+            >
+              <Bookmark size={14} fill={saved ? 'currentColor' : 'none'} />
+              {saved ? 'Đã lưu' : 'Lưu tin'}
+            </button>
+            <button type="button" className={styles.shareBtn} onClick={handleShare}>
+              <Share2 size={14} /> Chia sẻ
+            </button>
+          </div>
         </aside>
       </div>
     </div>

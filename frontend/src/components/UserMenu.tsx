@@ -52,7 +52,9 @@ export default function UserMenu({ user, onLogout }: UserMenuProps) {
             </Link>
           </li>
           <li>
-            <span className={`${styles.item} ${styles.itemDisabled}`}>Bài post đã lưu</span>
+            <Link href="/profile/saved" className={styles.item} onClick={() => setOpen(false)}>
+              Bài post đã lưu
+            </Link>
           </li>
           <li>
             <button

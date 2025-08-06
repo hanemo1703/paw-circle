@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
 import { User } from '../users/entities/user.entity';
 import { Post } from '../posts/entities/post.entity';
+import { SavedPost } from '../posts/entities/saved-post.entity';
 import { DonationCampaign } from '../donations/entities/donation-campaign.entity';
 import { Donation } from '../donations/entities/donation.entity';
 import { Message } from '../messages/entities/message.entity';
@@ -17,7 +18,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME || 'petconnect',
   password: process.env.DB_PASSWORD || 'petconnect',
   database: process.env.DB_DATABASE || 'petconnect',
-  entities: [User, Post, DonationCampaign, Donation, Message, Notification],
+  entities: [User, Post, SavedPost, DonationCampaign, Donation, Message, Notification],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
   logging: false,

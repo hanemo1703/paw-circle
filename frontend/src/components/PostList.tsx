@@ -150,6 +150,7 @@ function FilterChipGroup({
 function buildQuery(params: {
   type?: PostItem['type'];
   authorId?: string;
+  savedBy?: string;
   statusFilter: string[];
   speciesFilter: string[];
   areaFilter: string[];
@@ -160,6 +161,7 @@ function buildQuery(params: {
   const qs = new URLSearchParams();
   if (params.type) qs.set('type', params.type);
   if (params.authorId) qs.set('authorId', params.authorId);
+  if (params.savedBy) qs.set('savedBy', params.savedBy);
   if (params.statusFilter.length > 0) qs.set('statusCombos', params.statusFilter.join(','));
   if (params.speciesFilter.length > 0) qs.set('species', params.speciesFilter.join(','));
   if (params.areaFilter.length > 0) qs.set('provinceCodes', params.areaFilter.join(','));
@@ -175,16 +177,21 @@ export default function PostList({
   newPostType,
   type,
   authorId,
+  savedBy,
   initialPosts,
   initialTotal,
 }: {
   title: string;
   emptyText: string;
-  newPostType: PostItem['type'];
+  // Omitted on pages where "post a new listing" doesn't make sense (e.g. saved posts).
+  newPostType?: PostItem['type'];
   // Fixed post type for the listing pages (lost-found/adoption/marketplace/trade).
   type?: PostItem['type'];
   // Used instead of `type` for "Bài post của tôi", which spans every type for one author.
   authorId?: string;
+  // Used instead of `type`/`authorId` for "Bài post đã lưu" — every type, scoped to
+  // posts the given user has bookmarked rather than authored.
+  savedBy?: string;
   // Server-fetched first page (default filters: status OPEN, page 1) so the page has
   // content on first paint instead of flashing empty before the client fetch resolves.
   initialPosts?: PostItem[];
@@ -192,10 +199,15 @@ export default function PostList({
 }) {
   const typesForChips = useMemo(() => (type ? [type] : ALL_TYPES), [type]);
 
+  // Saved posts default to showing every status — a bookmarked post that's since been
+  // resolved/closed shouldn't just vanish from the list. Other views (type/author-scoped
+  // listings) still default to OPEN only.
   const [statusFilter, setStatusFilter] = useState<string[]>(() =>
-    buildStatusOptions(typesForChips)
-      .filter((opt) => opt.status === 'OPEN')
-      .map((opt) => opt.value),
+    savedBy
+      ? []
+      : buildStatusOptions(typesForChips)
+          .filter((opt) => opt.status === 'OPEN')
+          .map((opt) => opt.value),
   );
   const [speciesFilter, setSpeciesFilter] = useState<string[]>([]);
   const [areaFilter, setAreaFilter] = useState<string[]>([]);
@@ -241,7 +253,7 @@ export default function PostList({
     let cancelled = false;
     async function load() {
       try {
-        const qs = buildQuery({ type, authorId, statusFilter, speciesFilter, areaFilter, search, page, limit: PAGE_SIZE });
+        const qs = buildQuery({ type, authorId, savedBy, statusFilter, speciesFilter, areaFilter, search, page, limit: PAGE_SIZE });
         const res: PostsResponse = await api.get(`/posts?${qs}`);
         if (!cancelled) {
           setPosts(res.data);
@@ -255,7 +267,7 @@ export default function PostList({
     return () => {
       cancelled = true;
     };
-  }, [type, authorId, statusFilter, speciesFilter, areaFilter, search, page]);
+  }, [type, authorId, savedBy, statusFilter, speciesFilter, areaFilter, search, page]);
 
   useEffect(() => {
     if (view !== 'map') return;
@@ -265,6 +277,7 @@ export default function PostList({
         const qs = buildQuery({
           type,
           authorId,
+          savedBy,
           statusFilter,
           speciesFilter,
           areaFilter,
@@ -282,7 +295,7 @@ export default function PostList({
     return () => {
       cancelled = true;
     };
-  }, [view, type, authorId, statusFilter, speciesFilter, areaFilter, search]);
+  }, [view, type, authorId, savedBy, statusFilter, speciesFilter, areaFilter, search]);
 
   useEffect(() => {
     let cancelled = false;
@@ -291,6 +304,7 @@ export default function PostList({
         const qs = buildQuery({
           type,
           authorId,
+          savedBy,
           statusFilter: [],
           speciesFilter: [],
           areaFilter: [],
@@ -310,7 +324,7 @@ export default function PostList({
     return () => {
       cancelled = true;
     };
-  }, [type, authorId]);
+  }, [type, authorId, savedBy]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -332,9 +346,11 @@ export default function PostList({
     <div className={`container ${styles.wrapper}`}>
       <div className={styles.header}>
         <h1 className={styles.title}>{title}</h1>
-        <Link href={`/posts/new?type=${newPostType}`} className="btn btn-primary">
-          + Đăng tin mới
-        </Link>
+        {newPostType && (
+          <Link href={`/posts/new?type=${newPostType}`} className="btn btn-primary">
+            + Đăng tin mới
+          </Link>
+        )}
       </div>
 
       {overallTotal === 0 ? (

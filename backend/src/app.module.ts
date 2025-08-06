@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 
 import { User } from './users/entities/user.entity';
 import { Post } from './posts/entities/post.entity';
+import { SavedPost } from './posts/entities/saved-post.entity';
 import { DonationCampaign } from './donations/entities/donation-campaign.entity';
 import { Donation } from './donations/entities/donation.entity';
 import { Message } from './messages/entities/message.entity';
@@ -31,7 +32,7 @@ import { NotificationsModule } from './notifications/notifications.module';
         username: config.get('DB_USERNAME', 'petconnect'),
         password: config.get('DB_PASSWORD', 'petconnect'),
         database: config.get('DB_DATABASE', 'petconnect'),
-        entities: [User, Post, DonationCampaign, Donation, Message, Notification],
+        entities: [User, Post, SavedPost, DonationCampaign, Donation, Message, Notification],
         // Chi dung synchronize=true khi phat trien local. Khi len production
         // hay chuyen sang dung migration (yarn migration:run).
         synchronize: true,

@@ -289,6 +289,13 @@
   }
 }
 
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
 .shareBtn {
   align-self: center;
   display: flex;
@@ -303,6 +310,15 @@
   &:hover {
     color: $color-primary;
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.shareBtnActive {
+  color: $color-primary;
 }
 
 .notFound {

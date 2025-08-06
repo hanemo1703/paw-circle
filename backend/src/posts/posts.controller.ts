@@ -76,6 +76,24 @@ export class PostsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @HttpPost(':id/save')
+  save(@Req() req: any, @Param('id') id: string) {
+    return this.postsService.save(req.user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/save')
+  unsave(@Req() req: any, @Param('id') id: string) {
+    return this.postsService.unsave(req.user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/save')
+  checkSaved(@Req() req: any, @Param('id') id: string) {
+    return this.postsService.isSaved(req.user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(@Req() req: any, @Param('id') id: string, @Body() dto: UpdatePostDto) {
     return this.postsService.update(id, req.user.userId, dto);

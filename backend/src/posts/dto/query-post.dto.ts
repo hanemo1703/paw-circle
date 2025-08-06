@@ -15,6 +15,10 @@ export class QueryPostDto {
   @IsUUID()
   authorId?: string;
 
+  @IsOptional()
+  @IsUUID()
+  savedBy?: string;
+
   // Comma-separated "TYPE:STATUS" pairs, e.g. "LOST:OPEN,ADOPTION:OPEN" — matches
   // PostList.tsx's multi-select status chips, which group by (type, status) combo.
   @IsOptional()
