@@ -1,0 +1,90 @@
+@import './variables';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: $color-bg;
+  color: $color-text;
+}
+
+.app-root {
+  font-family: $font-family-base;
+}
+
+input,
+button,
+textarea,
+select {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.container {
+  max-width: $breakpoint-desktop;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.btn-primary {
+  background: $color-primary;
+  color: white;
+
+  &:hover {
+    background: $color-primary-dark;
+  }
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1.5px solid $color-border;
+  color: $color-text;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badge-lost {
+  background: rgba($color-danger, 0.1);
+  color: $color-danger;
+}
+
+.badge-found {
+  background: rgba($color-info, 0.1);
+  color: $color-info;
+}
+
+.badge-adoption {
+  background: rgba($color-secondary, 0.12);
+  color: $color-secondary;
+}

@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: petconnect-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: petconnect
+      POSTGRES_PASSWORD: petconnect
+      POSTGRES_DB: petconnect
+    ports:
+      - "5437:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  pg_data:

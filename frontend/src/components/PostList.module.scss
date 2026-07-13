@@ -1,0 +1,72 @@
+@import '../styles/variables';
+
+.wrapper {
+  padding: 40px 0 80px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 800;
+  color: $color-navy;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+
+  @media (max-width: $breakpoint-desktop) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  overflow: hidden;
+}
+
+.imagePlaceholder {
+  height: 160px;
+  background: linear-gradient(135deg, #ffe3d1, #ffd6e0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+}
+
+.cardBody {
+  padding: 16px;
+}
+
+.cardTitle {
+  font-weight: 700;
+  margin: 8px 0 4px;
+}
+
+.cardDesc {
+  color: $color-text-muted;
+  font-size: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.empty {
+  color: $color-text-muted;
+  padding: 40px 0;
+  text-align: center;
+}
