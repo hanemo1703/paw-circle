@@ -1,0 +1,26 @@
+@import '../styles/variables';
+
+.facebookButton {
+  width: 356px;
+  max-width: 100%;
+  height: 40px;
+  padding: 0 16px;
+  background: #1877f2;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-family: $font-family-base;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.25px;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    background: darken(#1877f2, 5%);
+  }
+}
