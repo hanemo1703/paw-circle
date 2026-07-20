@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Post } from './entities/post.entity';
+import { Post, PostType } from './entities/post.entity';
 import { CreatePostDto } from './dto/create-post.dto';
 import { QueryPostDto } from './dto/query-post.dto';
 
@@ -10,7 +10,21 @@ export class PostsService {
   constructor(@InjectRepository(Post) private postsRepo: Repository<Post>) {}
 
   create(authorId: string, dto: CreatePostDto) {
-    const post = this.postsRepo.create({ ...dto, authorId, images: dto.images ?? [] });
+    // For multi-pet ADOPTION posts, backfill the scalar species/breed/... fields from
+    // the first pet so anything still reading those columns gets sensible data
+    // (same convention as images[0] acting as the implicit thumbnail).
+    const firstPet = dto.type === PostType.ADOPTION ? dto.pets?.[0] : undefined;
+    const post = this.postsRepo.create({
+      ...dto,
+      authorId,
+      images: dto.images ?? [],
+      ...(firstPet && {
+        species: dto.species ?? firstPet.species,
+        breed: dto.breed ?? firstPet.breed,
+        color: dto.color ?? firstPet.color,
+        size: dto.size ?? firstPet.size,
+      }),
+    });
     return this.postsRepo.save(post);
   }
 

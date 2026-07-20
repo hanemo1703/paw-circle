@@ -4,6 +4,7 @@ import Script from 'next/script';
 import { useEffect } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import '../styles/globals.scss';
+import 'leaflet/dist/leaflet.css';
 import { roboto } from '../lib/fonts';
 import { AuthProvider } from '../lib/auth';
 import Header from '../components/Header';

@@ -14,12 +14,29 @@ export enum PostType {
   FOUND = 'FOUND',
   ADOPTION = 'ADOPTION',
   MARKETPLACE = 'MARKETPLACE',
+  TRADE = 'TRADE',
 }
 
 export enum PostStatus {
   OPEN = 'OPEN',
   RESOLVED = 'RESOLVED',
   CLOSED = 'CLOSED',
+}
+
+export enum PetGender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  UNKNOWN = 'UNKNOWN',
+}
+
+// One row per animal for ADOPTION posts covering more than one pet (e.g. a litter)
+export interface AdoptionPetInfo {
+  species: string;
+  breed?: string;
+  color?: string;
+  age?: number;
+  gender?: PetGender;
+  size?: number;
 }
 
 @Entity('posts')
@@ -53,6 +70,30 @@ export class Post {
 
   @Column({ type: 'float', nullable: true })
   price?: number;
+
+  @Column({ nullable: true })
+  species?: string;
+
+  @Column({ nullable: true })
+  breed?: string;
+
+  @Column({ nullable: true })
+  color?: string;
+
+  @Column({ type: 'float', nullable: true })
+  size?: number;
+
+  @Column({ type: 'enum', enum: PetGender, nullable: true })
+  gender?: PetGender;
+
+  @Column({ nullable: true })
+  collarDescription?: string;
+
+  @Column({ nullable: true })
+  microchipId?: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  pets?: AdoptionPetInfo[];
 
   @Column()
   authorId: string;
