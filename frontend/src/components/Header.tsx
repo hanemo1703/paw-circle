@@ -1,13 +1,15 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/auth';
 import styles from './Header.module.scss';
 
 const NAV_ITEMS = [
-  { href: '/lost-found', label: 'Thú lạc' },
-  { href: '/adoption', label: 'Nhận nuôi' },
-  { href: '/marketplace', label: 'Đồ dùng' },
-  { href: '/donations', label: 'Gây quỹ' },
+  { href: '/lost-found', label: 'Boss lạc' },
+  { href: '/adoption', label: 'Tuyển sen' },
+  { href: '/marketplace', label: 'Tặng đồ' },
+  { href: '/trade', label: 'Chợ boss' },
+  { href: '/donations', label: 'Cứu trợ' },
 ];
 
 export default function Header() {
@@ -23,12 +25,17 @@ export default function Header() {
     <header className={styles.header}>
       <div className={`container ${styles.inner}`}>
         <Link href="/" className={styles.logo}>
-          🐾 PawCircle
+          <Image src="/logo.jpg" alt="PawCircle" width={36} height={36} className={styles.logoImage} />
+          PawCircle
         </Link>
 
         <nav className={styles.nav}>
           {NAV_ITEMS.map((item) => (
-            <Link key={item.href} href={item.href}>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`${styles.navLink} ${router.pathname === item.href ? styles.navLinkActive : ''}`}
+            >
               {item.label}
             </Link>
           ))}

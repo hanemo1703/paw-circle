@@ -14,11 +14,15 @@ export default function MarketplacePage({ posts }: Props) {
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
   useEffect(() => {
-    if (router.isReady && router.query.created === '1') {
+    if (!router.isReady) return;
+    if (router.query.created === '1') {
       setToast({ message: 'Đăng tin thành công!', type: 'success' });
       router.replace('/marketplace', undefined, { shallow: true });
+    } else if (router.query.deleted === '1') {
+      setToast({ message: 'Đã xóa bài đăng.', type: 'success' });
+      router.replace('/marketplace', undefined, { shallow: true });
     }
-  }, [router.isReady, router.query.created]);
+  }, [router.isReady, router.query.created, router.query.deleted]);
 
   return (
     <>
@@ -34,17 +38,12 @@ export default function MarketplacePage({ posts }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  let marketplacePosts: PostItem[] = [];
-  let tradePosts: PostItem[] = [];
-
+  let posts: PostItem[] = [];
   try {
-    [marketplacePosts, tradePosts] = await Promise.all([
-      api.get('/posts?type=MARKETPLACE'),
-      api.get('/posts?type=TRADE'),
-    ]);
+    posts = await api.get('/posts?type=MARKETPLACE');
   } catch {
     // Backend not running — still render the page with an empty list
   }
 
-  return { props: { posts: [...marketplacePosts, ...tradePosts] } };
+  return { props: { posts } };
 };

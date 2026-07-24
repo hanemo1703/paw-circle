@@ -9,8 +9,7 @@ interface Props {
   posts: PostItem[];
 }
 
-// Page combining both "lost" (LOST) and "found" (FOUND) posts
-export default function LostFoundPage({ posts }: Props) {
+export default function TradePage({ posts }: Props) {
   const router = useRouter();
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
@@ -18,10 +17,10 @@ export default function LostFoundPage({ posts }: Props) {
     if (!router.isReady) return;
     if (router.query.created === '1') {
       setToast({ message: 'Đăng tin thành công!', type: 'success' });
-      router.replace('/lost-found', undefined, { shallow: true });
+      router.replace('/trade', undefined, { shallow: true });
     } else if (router.query.deleted === '1') {
       setToast({ message: 'Đã xóa bài đăng.', type: 'success' });
-      router.replace('/lost-found', undefined, { shallow: true });
+      router.replace('/trade', undefined, { shallow: true });
     }
   }, [router.isReady, router.query.created, router.query.deleted]);
 
@@ -29,27 +28,22 @@ export default function LostFoundPage({ posts }: Props) {
     <>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <PostList
-        title="Tìm chó mèo lạc"
+        title="Mua bán thú cưng"
         posts={posts}
-        emptyText="Chưa có tin báo mất/tìm thấy nào. Hãy là người đầu tiên đăng tin!"
-        newPostType="LOST"
+        emptyText="Chưa có tin mua bán thú cưng nào. Hãy đăng tin đầu tiên!"
+        newPostType="TRADE"
       />
     </>
   );
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  let lostPosts: PostItem[] = [];
-  let foundPosts: PostItem[] = [];
-
+  let posts: PostItem[] = [];
   try {
-    [lostPosts, foundPosts] = await Promise.all([
-      api.get('/posts?type=LOST'),
-      api.get('/posts?type=FOUND'),
-    ]);
+    posts = await api.get('/posts?type=TRADE');
   } catch {
     // Backend not running — still render the page with an empty list
   }
 
-  return { props: { posts: [...lostPosts, ...foundPosts] } };
+  return { props: { posts } };
 };

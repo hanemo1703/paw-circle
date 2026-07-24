@@ -1,0 +1,141 @@
+@import '../styles/variables';
+
+$caret-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%237A6F68' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+.wrapper {
+  position: relative;
+}
+
+.trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  padding-right: 32px;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface;
+  font-size: 15px;
+  font-family: inherit;
+  color: $color-text;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.open .trigger {
+  outline: 2px solid $color-primary;
+  border-color: $color-primary;
+}
+
+.value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caret {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 8px;
+  pointer-events: none;
+  background-image: $caret-icon;
+  background-repeat: no-repeat;
+  background-size: 12px 8px;
+}
+
+.list {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  font-family: $font-family-base;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.option {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: $radius-sm;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba($color-primary, 0.08);
+    color: $color-primary;
+  }
+}
+
+.optionSelected {
+  background: rgba($color-primary, 0.08);
+  color: $color-primary;
+  font-weight: 600;
+}
+
+// Smaller variant for dense contexts (e.g. table cells)
+.sm {
+  .trigger {
+    padding: 6px 8px;
+    padding-right: 26px;
+    font-size: 13px;
+    min-width: 90px;
+  }
+
+  .caret {
+    right: 8px;
+    width: 10px;
+    height: 7px;
+  }
+
+  .option {
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+}
+
+// Pill variant for inline status pickers next to badges
+.compact {
+  .trigger {
+    display: inline-flex;
+    width: auto;
+    padding: 4px 26px 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .caret {
+    width: 10px;
+    height: 7px;
+  }
+
+  .option {
+    text-transform: none;
+    font-weight: 500;
+  }
+}
+
+.listCompact {
+  min-width: 180px;
+}

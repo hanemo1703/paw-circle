@@ -10,18 +10,22 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PetGender, PostType } from '../entities/post.entity';
+import { PetGender, PostStatus } from '../entities/post.entity';
 import { CreateAdoptionPetDto } from './create-adoption-pet.dto';
 
-export class CreatePostDto {
-  @IsEnum(PostType)
-  type: PostType;
+// Post type is intentionally not editable — a post keeps the category it was created under.
+export class UpdatePostDto {
+  @IsOptional()
+  @IsEnum(PostStatus)
+  status?: PostStatus;
 
+  @IsOptional()
   @IsString()
-  title: string;
+  title?: string;
 
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
   @IsOptional()
   @IsArray()

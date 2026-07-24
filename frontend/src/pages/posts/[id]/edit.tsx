@@ -2,48 +2,64 @@ import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { useRouter } from 'next/router';
+import type { GetServerSideProps } from 'next';
 import { MapPin } from 'lucide-react';
-import { api } from '../../../lib/api';
+import { api, toAssetUrl } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
-import { PostItem } from '../../../components/PostList';
 import Dropdown from '../../../components/Dropdown';
-import styles from './index.module.scss';
+import styles from '../new/index.module.scss';
 
 const MAX_IMAGES = 6;
 const MAX_IMAGE_SIZE_MB = 5;
 
 const LocationPicker = dynamic(() => import('../../../components/LocationPicker'), { ssr: false });
 
-type PostType = PostItem['type'];
-// Users can only create these types through this form (FOUND is view-only elsewhere)
-type CreatableType = Exclude<PostType, 'FOUND'>;
+type PostType = 'LOST' | 'FOUND' | 'ADOPTION' | 'MARKETPLACE' | 'TRADE';
+type PetGender = 'MALE' | 'FEMALE' | 'UNKNOWN';
+type AdoptionPetStatus = 'PENDING' | 'ADOPTED';
 
-const TYPE_OPTIONS: CreatableType[] = ['LOST', 'ADOPTION', 'MARKETPLACE', 'TRADE'];
+interface AdoptionPetInfo {
+  species: string;
+  breed?: string;
+  color?: string;
+  age?: number;
+  gender?: PetGender;
+  size?: number;
+  status?: AdoptionPetStatus;
+}
 
-const TYPE_LABEL: Record<CreatableType, string> = {
+interface Author {
+  id: string;
+  name: string;
+}
+
+interface PostDetail {
+  id: string;
+  type: PostType;
+  title: string;
+  description: string;
+  images: string[];
+  address?: string;
+  price?: number;
+  species?: string;
+  breed?: string;
+  color?: string;
+  size?: number;
+  gender?: PetGender;
+  collarDescription?: string;
+  pets?: AdoptionPetInfo[];
+  latitude?: number;
+  longitude?: number;
+  author?: Author;
+}
+
+const TYPE_LABEL: Record<PostType, string> = {
   LOST: 'Tìm boss lạc',
+  FOUND: 'Đã tìm thấy',
   ADOPTION: 'Tuyển sen/Tìm sen',
   MARKETPLACE: 'Cho tặng đồ dùng',
   TRADE: 'Mua bán boss',
 };
-
-const LABEL_TO_TYPE: Record<string, CreatableType> = TYPE_OPTIONS.reduce(
-  (acc, t) => ({ ...acc, [TYPE_LABEL[t]]: t }),
-  {} as Record<string, CreatableType>,
-);
-
-const REDIRECT_PATH: Record<CreatableType, string> = {
-  LOST: '/lost-found',
-  ADOPTION: '/adoption',
-  MARKETPLACE: '/marketplace',
-  TRADE: '/trade',
-};
-
-function parseType(value: unknown): CreatableType {
-  return value === 'LOST' || value === 'ADOPTION' || value === 'MARKETPLACE' || value === 'TRADE'
-    ? value
-    : 'LOST';
-}
 
 type SpeciesOption = 'CAT' | 'DOG' | 'OTHER';
 
@@ -57,6 +73,12 @@ const SPECIES_LABEL: Record<SpeciesOption, string> = {
 
 const SPECIES_DROPDOWN_OPTIONS = SPECIES_OPTIONS.map((s) => ({ value: s, label: SPECIES_LABEL[s] }));
 
+function toSpeciesOption(value?: string): { species: SpeciesOption; speciesOther: string } {
+  if (value === SPECIES_LABEL.CAT) return { species: 'CAT', speciesOther: '' };
+  if (value === SPECIES_LABEL.DOG) return { species: 'DOG', speciesOther: '' };
+  return { species: 'OTHER', speciesOther: value ?? '' };
+}
+
 type GenderOption = 'MALE' | 'FEMALE' | 'UNKNOWN';
 
 const GENDER_OPTIONS: GenderOption[] = ['MALE', 'FEMALE', 'UNKNOWN'];
@@ -69,35 +91,6 @@ const GENDER_LABEL: Record<GenderOption, string> = {
 
 const GENDER_DROPDOWN_OPTIONS = GENDER_OPTIONS.map((g) => ({ value: g, label: GENDER_LABEL[g] }));
 
-const PROVINCES_API_URL = 'https://provinces.open-api.vn/api/v2/p/';
-
-interface Ward {
-  code: number;
-  name: string;
-}
-
-interface Province {
-  code: number;
-  name: string;
-  wards: Ward[];
-}
-
-function normalizeLocationName(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/\b(tinh|thanh pho|tp|quan|huyen|thi xa|phuong|xa|thi tran)\b/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-function namesMatch(a: string, b: string): boolean {
-  const na = normalizeLocationName(a);
-  const nb = normalizeLocationName(b);
-  return !!na && !!nb && (na.includes(nb) || nb.includes(na));
-}
-
 interface PetRowValues {
   species: SpeciesOption;
   speciesOther: string;
@@ -106,6 +99,7 @@ interface PetRowValues {
   age: string;
   gender: GenderOption;
   size: string;
+  status: AdoptionPetStatus;
 }
 
 function makeDefaultPetRow(): PetRowValues {
@@ -117,11 +111,27 @@ function makeDefaultPetRow(): PetRowValues {
     age: '',
     gender: 'UNKNOWN',
     size: '',
+    status: 'PENDING',
+  };
+}
+
+// Adoption status is only ever changed from the post detail page — carried through
+// here unchanged so saving unrelated edits doesn't reset a pet back to "pending".
+function petToRow(pet: AdoptionPetInfo): PetRowValues {
+  const { species, speciesOther } = toSpeciesOption(pet.species);
+  return {
+    species,
+    speciesOther,
+    breed: pet.breed ?? '',
+    color: pet.color ?? '',
+    age: pet.age != null ? String(pet.age) : '',
+    gender: pet.gender ?? 'UNKNOWN',
+    size: pet.size != null ? String(pet.size) : '',
+    status: pet.status ?? 'PENDING',
   };
 }
 
 interface FormValues {
-  typeText: string;
   species: SpeciesOption;
   speciesOther: string;
   breed: string;
@@ -132,43 +142,22 @@ interface FormValues {
   pets: PetRowValues[];
   title: string;
   description: string;
-  provinceCode: string;
-  wardCode: string;
-  detailAddress: string;
+  address: string;
   price: string;
   latitude: string;
   longitude: string;
 }
 
-const DEFAULT_VALUES: FormValues = {
-  typeText: TYPE_LABEL.LOST,
-  species: 'CAT',
-  speciesOther: '',
-  breed: '',
-  color: '',
-  size: '',
-  gender: 'UNKNOWN',
-  collarDescription: '',
-  pets: [makeDefaultPetRow()],
-  title: '',
-  description: '',
-  provinceCode: '',
-  wardCode: '',
-  detailAddress: '',
-  price: '',
-  latitude: '',
-  longitude: '',
-};
+interface Props {
+  post: PostDetail | null;
+}
 
-export default function NewPostPage() {
+export default function EditPostPage({ post }: Props) {
   const router = useRouter();
-  const { isAuthenticated, accessToken } = useAuth();
+  const { isAuthenticated, user, accessToken } = useAuth();
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
   const [showMap, setShowMap] = useState(false);
-  const [provinces, setProvinces] = useState<Province[]>([]);
-  const [wards, setWards] = useState<Ward[]>([]);
-  const [regionError, setRegionError] = useState<string | null>(null);
+  const [existingImages, setExistingImages] = useState<string[]>(post?.images ?? []);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -176,6 +165,8 @@ export default function NewPostPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imagePreviewsRef = useRef<string[]>([]);
   imagePreviewsRef.current = imagePreviews;
+
+  const speciesInfo = toSpeciesOption(post?.species);
 
   const {
     register,
@@ -185,17 +176,31 @@ export default function NewPostPage() {
     setError,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ defaultValues: DEFAULT_VALUES });
+  } = useForm<FormValues>({
+    defaultValues: {
+      species: speciesInfo.species,
+      speciesOther: speciesInfo.speciesOther,
+      breed: post?.breed ?? '',
+      color: post?.color ?? '',
+      size: post?.size != null ? String(post.size) : '',
+      gender: post?.gender ?? 'UNKNOWN',
+      collarDescription: post?.collarDescription ?? '',
+      pets: post?.pets && post.pets.length > 0 ? post.pets.map(petToRow) : [makeDefaultPetRow()],
+      title: post?.title ?? '',
+      description: post?.description ?? '',
+      address: post?.address ?? '',
+      price: post?.price != null ? String(post.price) : '',
+      latitude: post?.latitude != null ? String(post.latitude) : '',
+      longitude: post?.longitude != null ? String(post.longitude) : '',
+    },
+  });
 
   const { fields: petFields, append: appendPet, remove: removePet } = useFieldArray({
     control,
     name: 'pets',
   });
 
-  const typeText = watch('typeText');
   const species = watch('species');
-  const provinceCode = watch('provinceCode');
-  const wardCode = watch('wardCode');
   const latitude = watch('latitude');
   const longitude = watch('longitude');
 
@@ -204,35 +209,15 @@ export default function NewPostPage() {
   }, []);
 
   useEffect(() => {
-    fetch(PROVINCES_API_URL)
-      .then((res) => res.json())
-      .then((data: Province[]) => setProvinces(data))
-      .catch(() => setRegionError('Không tải được danh sách tỉnh/thành.'));
-  }, []);
-
-  useEffect(() => {
-    setValue('wardCode', '');
-    if (!provinceCode) {
-      setWards([]);
+    if (checkingAuth) return;
+    if (!isAuthenticated) {
+      router.replace('/login');
       return;
     }
-    fetch(`${PROVINCES_API_URL}${provinceCode}?depth=2`)
-      .then((res) => res.json())
-      .then((data: Province) => setWards(data.wards))
-      .catch(() => setRegionError('Không tải được danh sách phường/xã.'));
-  }, [provinceCode, setValue]);
-
-  useEffect(() => {
-    if (router.isReady) {
-      setValue('typeText', TYPE_LABEL[parseType(router.query.type)]);
+    if (post && user && post.author && post.author.id !== user.id) {
+      router.replace(`/posts/${post.id}`);
     }
-  }, [router.isReady, router.query.type, setValue]);
-
-  useEffect(() => {
-    if (!checkingAuth && !isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [checkingAuth, isAuthenticated, router]);
+  }, [checkingAuth, isAuthenticated, post, user, router]);
 
   useEffect(() => {
     return () => {
@@ -240,9 +225,27 @@ export default function NewPostPage() {
     };
   }, []);
 
-  if (checkingAuth || !isAuthenticated) {
+  if (!post) {
+    return (
+      <div className={styles.wrapper}>
+        <p>Không tìm thấy bài đăng.</p>
+      </div>
+    );
+  }
+
+  const isOwner = !!user && !!post.author && post.author.id === user.id;
+
+  if (checkingAuth || !isAuthenticated || !isOwner) {
     return null;
   }
+
+  const type = post.type;
+  const showPrice = type === 'TRADE';
+  const showSpecies = type !== 'MARKETPLACE';
+  const showPetList = type === 'ADOPTION';
+  const showSingleAnimal = showSpecies && !showPetList;
+
+  const totalImages = existingImages.length + imageFiles.length;
 
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? []);
@@ -258,8 +261,9 @@ export default function NewPostPage() {
     });
 
     const merged = [...imageFiles, ...accepted];
-    const truncated = merged.length > MAX_IMAGES;
-    const finalFiles = merged.slice(0, MAX_IMAGES);
+    const remainingSlots = MAX_IMAGES - existingImages.length;
+    const truncated = merged.length > remainingSlots;
+    const finalFiles = merged.slice(0, Math.max(remainingSlots, 0));
 
     if (rejected.length > 0) {
       setImageError(`Đã bỏ qua ảnh không hợp lệ hoặc quá ${MAX_IMAGE_SIZE_MB}MB: ${rejected.join(', ')}`);
@@ -270,13 +274,17 @@ export default function NewPostPage() {
     }
 
     const acceptedCount = finalFiles.length - imageFiles.length;
-    const newPreviews = accepted.slice(0, acceptedCount).map((file) => URL.createObjectURL(file));
+    const newPreviews = accepted.slice(0, Math.max(acceptedCount, 0)).map((file) => URL.createObjectURL(file));
 
     setImageFiles(finalFiles);
     setImagePreviews([...imagePreviews, ...newPreviews]);
   };
 
-  const removeImage = (index: number) => {
+  const removeExistingImage = (index: number) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeNewImage = (index: number) => {
     setImagePreviews((prev) => {
       URL.revokeObjectURL(prev[index]);
       return prev.filter((_, i) => i !== index);
@@ -285,55 +293,8 @@ export default function NewPostPage() {
     setImageError(null);
   };
 
-  const reverseGeocodeAndFill = async (lat: number, lng: number) => {
-    if (provinces.length === 0) return;
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=vi`,
-      );
-      const data = await res.json();
-      const addr = data.address ?? {};
-      const provinceCandidate: string = addr.state || addr.city || addr.county || '';
-      const wardCandidate: string =
-        addr.suburb || addr.quarter || addr.village || addr.town || addr.city_district || addr.neighbourhood || '';
-
-      const matchedProvince = provinces.find((p) => namesMatch(p.name, provinceCandidate));
-      if (!matchedProvince) return;
-
-      setValue('provinceCode', String(matchedProvince.code));
-      const wardsRes = await fetch(`${PROVINCES_API_URL}${matchedProvince.code}?depth=2`);
-      const wardsData = await wardsRes.json();
-      setWards(wardsData.wards);
-      const matchedWard = wardCandidate
-        ? wardsData.wards.find((w: Ward) => namesMatch(w.name, wardCandidate))
-        : undefined;
-      setValue('wardCode', matchedWard ? String(matchedWard.code) : '');
-    } catch {
-      // Best-effort only — leave dropdowns for manual selection on any failure.
-    }
-  };
-
-  const type = LABEL_TO_TYPE[typeText.trim()] ?? null;
-  const showPrice = type === 'TRADE';
-  const showSpecies = type !== 'MARKETPLACE';
-  const showPetList = type === 'ADOPTION';
-  const showSingleAnimal = showSpecies && !showPetList;
-  const selectedProvince = provinces.find((p) => String(p.code) === provinceCode);
-  const selectedWard = wards.find((w) => String(w.code) === wardCode);
-
-  const typeTextField = register('typeText', {
-    validate: (value) =>
-      !!LABEL_TO_TYPE[value.trim()] || 'Vui lòng chọn loại tin hợp lệ từ danh sách.',
-  });
-
   const onSubmit = handleSubmit(async (data) => {
-    const resolvedType = LABEL_TO_TYPE[data.typeText.trim()];
-    if (!resolvedType) return;
-
     const speciesValue = data.species === 'OTHER' ? data.speciesOther.trim() : SPECIES_LABEL[data.species];
-    const regionAddress =
-      selectedWard && selectedProvince ? `${selectedWard.name}, ${selectedProvince.name}` : '';
-    const address = [data.detailAddress.trim(), regionAddress].filter(Boolean).join(', ');
 
     let uploadedUrls: string[] = [];
     if (imageFiles.length > 0) {
@@ -352,21 +313,24 @@ export default function NewPostPage() {
     }
 
     try {
-      await api.post(
-        '/posts',
+      await api.patch(
+        `/posts/${post.id}`,
         {
-          type: resolvedType,
           title: data.title,
           description: data.description,
-          ...(uploadedUrls.length ? { images: uploadedUrls } : {}),
-          ...(address ? { address } : {}),
+          images: [...existingImages, ...uploadedUrls],
+          address: data.address.trim(),
           ...(showPrice && data.price ? { price: Number(data.price) } : {}),
-          ...(showSingleAnimal && speciesValue ? { species: speciesValue } : {}),
-          ...(showSingleAnimal && data.breed ? { breed: data.breed } : {}),
-          ...(showSingleAnimal && data.color ? { color: data.color } : {}),
-          ...(showSingleAnimal && data.size ? { size: Number(data.size) } : {}),
-          ...(showSingleAnimal ? { gender: data.gender } : {}),
-          ...(type === 'LOST' && data.collarDescription ? { collarDescription: data.collarDescription } : {}),
+          ...(showSingleAnimal
+            ? {
+                species: speciesValue,
+                breed: data.breed,
+                color: data.color,
+                gender: data.gender,
+                ...(data.size ? { size: Number(data.size) } : {}),
+              }
+            : {}),
+          ...(type === 'LOST' ? { collarDescription: data.collarDescription } : {}),
           ...(showPetList
             ? {
                 pets: data.pets.map((p) => ({
@@ -376,6 +340,7 @@ export default function NewPostPage() {
                   ...(p.age ? { age: Number(p.age) } : {}),
                   gender: p.gender,
                   ...(p.size ? { size: Number(p.size) } : {}),
+                  status: p.status,
                 })),
               }
             : {}),
@@ -385,7 +350,7 @@ export default function NewPostPage() {
         },
         accessToken || undefined,
       );
-      router.push(`${REDIRECT_PATH[resolvedType]}?created=1`);
+      router.push(`/posts/${post.id}`);
     } catch (err: any) {
       setError('root', { message: err.message });
     }
@@ -393,48 +358,8 @@ export default function NewPostPage() {
 
   return (
     <div className={styles.wrapper}>
-      <h1 className={styles.title}>Đăng tin mới</h1>
+      <h1 className={styles.title}>Chỉnh sửa tin ({TYPE_LABEL[type]})</h1>
       <form onSubmit={onSubmit}>
-        <div className={`${styles.field} ${styles.typeField}`}>
-          <label htmlFor="type">
-            Loại tin<span className={styles.requiredMark}>*</span>
-          </label>
-          <div className={styles.typeInputWrapper}>
-            <input
-              id="type"
-              className={styles.typeInput}
-              autoComplete="off"
-              {...typeTextField}
-              onFocus={() => setTypeDropdownOpen(true)}
-              onBlur={(e) => {
-                typeTextField.onBlur(e);
-                setTypeDropdownOpen(false);
-              }}
-            />
-            <span className={styles.typeCaret} aria-hidden="true" />
-          </div>
-          {typeDropdownOpen && (
-            <ul className={styles.typeDropdown}>
-              {TYPE_OPTIONS.map((t) => (
-                <li key={t}>
-                  <button
-                    type="button"
-                    className={styles.typeDropdownOption}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setValue('typeText', TYPE_LABEL[t], { shouldValidate: true });
-                      setTypeDropdownOpen(false);
-                    }}
-                  >
-                    {TYPE_LABEL[t]}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {errors.typeText && <p style={{ color: 'red', fontSize: 13 }}>{errors.typeText.message}</p>}
-        </div>
-
         <div className={styles.field}>
           <label htmlFor="title">
             Tiêu đề<span className={styles.requiredMark}>*</span>
@@ -461,16 +386,24 @@ export default function NewPostPage() {
             type="file"
             accept="image/*"
             multiple
-            disabled={isSubmitting || uploadingImages}
+            disabled={isSubmitting || uploadingImages || totalImages >= MAX_IMAGES}
             onChange={handleFilesSelected}
           />
           {imageError && <p style={{ color: 'red', fontSize: 13 }}>{imageError}</p>}
-          {imagePreviews.length > 0 && (
+          {(existingImages.length > 0 || imagePreviews.length > 0) && (
             <div className={styles.imagePreviewGrid}>
+              {existingImages.map((img, idx) => (
+                <div key={img} className={styles.imagePreviewItem}>
+                  <img src={toAssetUrl(img)} alt={`Ảnh ${idx + 1}`} />
+                  <button type="button" onClick={() => removeExistingImage(idx)} aria-label="Xóa ảnh">
+                    ×
+                  </button>
+                </div>
+              ))}
               {imagePreviews.map((src, idx) => (
                 <div key={src} className={styles.imagePreviewItem}>
-                  <img src={src} alt={`Ảnh ${idx + 1}`} />
-                  <button type="button" onClick={() => removeImage(idx)} aria-label="Xóa ảnh">
+                  <img src={src} alt={`Ảnh mới ${idx + 1}`} />
+                  <button type="button" onClick={() => removeNewImage(idx)} aria-label="Xóa ảnh">
                     ×
                   </button>
                 </div>
@@ -660,55 +593,8 @@ export default function NewPostPage() {
         )}
 
         <div className={styles.field}>
-          <label htmlFor="province">
-            Khu vực<span className={styles.requiredMark}>*</span>
-          </label>
-          <div className={styles.regionRow}>
-            <Controller
-              name="provinceCode"
-              control={control}
-              rules={{ required: 'Vui lòng chọn tỉnh/thành phố.' }}
-              render={({ field }) => (
-                <Dropdown
-                  id="province"
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="-- Tỉnh/Thành phố --"
-                  options={provinces.map((p) => ({ value: String(p.code), label: p.name }))}
-                />
-              )}
-            />
-            <Controller
-              name="wardCode"
-              control={control}
-              rules={{ required: 'Vui lòng chọn phường/xã.' }}
-              render={({ field }) => (
-                <Dropdown
-                  id="ward"
-                  value={field.value}
-                  onChange={field.onChange}
-                  disabled={!provinceCode}
-                  placeholder="-- Phường/Xã --"
-                  options={wards.map((w) => ({ value: String(w.code), label: w.name }))}
-                />
-              )}
-            />
-          </div>
-          {errors.provinceCode && (
-            <p style={{ color: 'red', fontSize: 13 }}>{errors.provinceCode.message}</p>
-          )}
-          {errors.wardCode && <p style={{ color: 'red', fontSize: 13 }}>{errors.wardCode.message}</p>}
-          {regionError && <p style={{ color: 'red', fontSize: 13 }}>{regionError}</p>}
-        </div>
-
-        <div className={styles.field}>
-          <label htmlFor="detailAddress">Địa chỉ cụ thể (không bắt buộc)</label>
-          <input
-            id="detailAddress"
-            placeholder="Số nhà, tên đường..."
-            maxLength={200}
-            {...register('detailAddress')}
-          />
+          <label htmlFor="address">Địa chỉ (không bắt buộc)</label>
+          <input id="address" placeholder="Khu vực, số nhà, tên đường..." {...register('address')} />
         </div>
 
         <div className={styles.field}>
@@ -718,7 +604,7 @@ export default function NewPostPage() {
             onClick={() => setShowMap((open) => !open)}
           >
             <MapPin size={14} style={{ verticalAlign: -2 }} />{' '}
-            {showMap ? 'Ẩn bản đồ' : 'Ghim vị trí trên bản đồ (không bắt buộc)'}
+            {showMap ? 'Ẩn bản đồ' : 'Ghim lại vị trí trên bản đồ (không bắt buộc)'}
           </button>
           {showMap && (
             <LocationPicker
@@ -727,7 +613,6 @@ export default function NewPostPage() {
               onChange={(lat, lng) => {
                 setValue('latitude', String(lat));
                 setValue('longitude', String(lng));
-                reverseGeocodeAndFill(lat, lng);
               }}
               onClear={() => {
                 setValue('latitude', '');
@@ -743,9 +628,19 @@ export default function NewPostPage() {
           className={`btn btn-primary ${styles.submit}`}
           disabled={isSubmitting || uploadingImages}
         >
-          {uploadingImages ? 'Đang tải ảnh...' : isSubmitting ? 'Đang đăng...' : 'Đăng tin'}
+          {uploadingImages ? 'Đang tải ảnh...' : isSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
         </button>
       </form>
     </div>
   );
 }
+
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  const id = ctx.params?.id as string;
+  try {
+    const post = await api.get(`/posts/${id}`);
+    return { props: { post } };
+  } catch {
+    return { props: { post: null } };
+  }
+};
