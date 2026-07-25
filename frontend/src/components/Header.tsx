@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/auth';
+import UserMenu from './UserMenu';
 import styles from './Header.module.scss';
 
 const NAV_ITEMS = [
@@ -42,13 +43,8 @@ export default function Header() {
         </nav>
 
         <div className={styles.actions}>
-          {isAuthenticated ? (
-            <>
-              <span className={styles.userName}>Xin chào, {user?.name}</span>
-              <button type="button" className="btn btn-outline" onClick={handleLogout}>
-                Đăng xuất
-              </button>
-            </>
+          {isAuthenticated && user ? (
+            <UserMenu user={user} onLogout={handleLogout} />
           ) : (
             <>
               <Link href="/login" className="btn btn-outline">

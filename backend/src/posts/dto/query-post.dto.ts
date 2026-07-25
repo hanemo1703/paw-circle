@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional } from 'class-validator';
+import { IsEnum, IsOptional, IsUUID } from 'class-validator';
 import { PostStatus, PostType } from '../entities/post.entity';
 
 export class QueryPostDto {
@@ -9,4 +9,8 @@ export class QueryPostDto {
   @IsOptional()
   @IsEnum(PostStatus)
   status?: PostStatus;
+
+  @IsOptional()
+  @IsUUID()
+  authorId?: string;
 }
