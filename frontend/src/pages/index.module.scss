@@ -1,0 +1,141 @@
+@import '../styles/variables';
+
+// Quadrant accent colors — decorative brand blocks specific to the landing page,
+// distinct from the app's semantic status/badge palette.
+$accent-lost: #efb94a;
+$accent-lost-text: #4a3b14;
+$accent-adopt: #4c9873;
+$accent-adopt-text: #e4f1ea;
+$accent-market: #4779a0;
+$accent-market-text: #e3edf3;
+$accent-donate: #be4b3a;
+$accent-donate-text: #f5ddd9;
+
+.wrapper {
+  padding-bottom: 40px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 56px;
+  align-items: center;
+  padding: 40px 20px 64px;
+
+  @media (max-width: $breakpoint-tablet) {
+    grid-template-columns: 1fr;
+    padding-bottom: 40px;
+  }
+}
+
+.badge {
+  display: inline-block;
+  background: #fbebd3;
+  color: #8a5a1e;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 18px;
+}
+
+.heroTitle {
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.15;
+  margin: 0 0 18px;
+  color: $color-navy;
+
+  @media (max-width: $breakpoint-tablet) {
+    font-size: 34px;
+  }
+}
+
+.heroSubtitle {
+  font-size: 17px;
+  line-height: 1.6;
+  color: $color-text-muted;
+  margin: 0 0 30px;
+  max-width: 440px;
+}
+
+.heroActions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.heroImage {
+  width: 100%;
+  height: 420px;
+  border-radius: $radius-card;
+  background: linear-gradient(135deg, rgba($color-primary, 0.15), rgba($color-secondary, 0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-primary;
+
+  @media (max-width: $breakpoint-tablet) {
+    height: 220px;
+  }
+}
+
+.quadSection {
+  padding: 0 20px 64px;
+}
+
+.quadGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+
+  @media (max-width: $breakpoint-tablet) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quadCard {
+  border-radius: $radius-card;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 200px;
+  box-shadow: 0 6px 20px rgba(43, 38, 32, 0.08);
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+.quadTitle {
+  font-family: $font-family-display;
+  font-weight: 600;
+  font-size: 19px;
+  margin-bottom: 4px;
+}
+
+.quadDesc {
+  font-size: 14px;
+}
+
+.quadLost {
+  background: $accent-lost;
+  color: $accent-lost-text;
+}
+
+.quadAdopt {
+  background: $accent-adopt;
+  color: $accent-adopt-text;
+}
+
+.quadMarket {
+  background: $accent-market;
+  color: $accent-market-text;
+}
+
+.quadDonate {
+  background: $accent-donate;
+  color: $accent-donate-text;
+}

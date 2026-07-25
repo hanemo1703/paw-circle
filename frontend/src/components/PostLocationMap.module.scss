@@ -1,0 +1,18 @@
+@import '../styles/variables';
+
+.mapContainer {
+  border-radius: $radius-card;
+  overflow: hidden;
+}
+
+.map {
+  height: 200px;
+  width: 100%;
+}
+
+.pinIcon {
+  font-size: 26px;
+  line-height: 1;
+  text-align: center;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+}

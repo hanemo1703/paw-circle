@@ -16,6 +16,14 @@ body {
   font-family: $font-family-base;
 }
 
+h1,
+h2,
+h3,
+h4,
+.disp {
+  font-family: $font-family-display;
+}
+
 input,
 button,
 textarea,
@@ -42,9 +50,10 @@ a {
   padding: 10px 20px;
   border-radius: 999px;
   border: none;
+  font-family: $font-family-display;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 
   &:hover {
     transform: translateY(-1px);
@@ -54,6 +63,8 @@ a {
 .btn-primary {
   background: $color-primary;
   color: white;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba($color-primary, 0.35);
 
   &:hover {
     background: $color-primary-dark;
@@ -61,8 +72,8 @@ a {
 }
 
 .btn-outline {
-  background: transparent;
-  border: 1.5px solid $color-border;
+  background: $color-surface;
+  border: 2px solid $color-border;
   color: $color-text;
 }
 

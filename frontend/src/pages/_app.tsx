@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import '../styles/globals.scss';
 import 'leaflet/dist/leaflet.css';
-import { roboto } from '../lib/fonts';
+import { baloo2, beVietnamPro } from '../lib/fonts';
 import { AuthProvider } from '../lib/auth';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -23,7 +23,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
   const app = (
     <AuthProvider>
-      <div className={`${roboto.variable} app-root`}>
+      <div className={`${baloo2.variable} ${beVietnamPro.variable} app-root`}>
         <Head>
           <title>PawCircle — Kết nối cộng đồng yêu chó mèo</title>
           <meta

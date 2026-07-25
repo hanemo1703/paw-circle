@@ -2,16 +2,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/auth';
+import { NAV_ITEMS } from '../lib/nav';
 import UserMenu from './UserMenu';
 import styles from './Header.module.scss';
-
-const NAV_ITEMS = [
-  { href: '/lost-found', label: 'Boss lạc' },
-  { href: '/adoption', label: 'Tuyển sen' },
-  { href: '/marketplace', label: 'Tặng đồ' },
-  { href: '/trade', label: 'Chợ boss' },
-  { href: '/donations', label: 'Cứu trợ' },
-];
 
 export default function Header() {
   const router = useRouter();
