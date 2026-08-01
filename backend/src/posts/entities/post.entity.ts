@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Pet } from '../../pets/entities/pet.entity';
@@ -49,9 +50,11 @@ export class Post {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column({ type: 'enum', enum: PostType })
   type: PostType;
 
+  @Index()
   @Column({ type: 'enum', enum: PostStatus, default: PostStatus.OPEN })
   status: PostStatus;
 
@@ -75,6 +78,7 @@ export class Post {
 
   // provinces.open-api.vn codes — kept alongside `address` so the "Khu vực" filter
   // can match by code instead of parsing province/ward names out of free text.
+  @Index()
   @Column({ type: 'int', nullable: true })
   provinceCode?: number;
 
@@ -105,6 +109,7 @@ export class Post {
   @Column({ type: 'jsonb', nullable: true })
   pets?: AdoptionPetInfo[];
 
+  @Index()
   @Column()
   authorId: string;
 
@@ -117,6 +122,7 @@ export class Post {
   @ManyToOne(() => Pet, (pet) => pet.posts, { nullable: true })
   pet?: Pet;
 
+  @Index()
   @CreateDateColumn()
   createdAt: Date;
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, MapPin, Search, Wallet } from 'lucide-react';
-import { toAssetUrl } from '../lib/api';
+import { api, toAssetUrl } from '../lib/api';
 import { formatRelativeTime } from '../lib/format';
 import MultiSelectDropdown from './MultiSelectDropdown';
 import styles from './PostList.module.scss';
@@ -14,6 +14,9 @@ const PostsMapView = dynamic(() => import('./PostsMapView'), { ssr: false });
 // Same source used by the "new post" location picker for Tỉnh/Thành phố options.
 const PROVINCES_API_URL = 'https://provinces.open-api.vn/api/v2/p/';
 const PAGE_SIZE = 6;
+// Map view plots every matching post, not just the current page — capped at the
+// backend's hard limit (500) so it stays a bounded query.
+const MAP_VIEW_LIMIT = 500;
 const SEARCH_DEBOUNCE_MS = 300;
 
 export interface PostItem {
@@ -33,18 +36,16 @@ export interface PostItem {
   createdAt: string;
 }
 
+interface PostsResponse {
+  data: PostItem[];
+  total: number;
+}
+
 const SPECIES_FILTER_OPTIONS = [
   { value: 'Chó', label: 'Chó' },
   { value: 'Mèo', label: 'Mèo' },
   { value: 'OTHER', label: 'Khác' },
 ];
-
-function matchesSpeciesFilter(post: PostItem, speciesFilter: string[]): boolean {
-  if (speciesFilter.length === 0) return true;
-  if (!post.species) return false;
-  if (speciesFilter.includes(post.species)) return true;
-  return speciesFilter.includes('OTHER') && post.species !== 'Chó' && post.species !== 'Mèo';
-}
 
 // Compact page-number list with ellipsis for large result sets, e.g. [1, 2, '...', 5, 6, 7, '...', 12].
 function getPageNumbers(current: number, total: number): (number | '...')[] {
@@ -85,6 +86,7 @@ const STATUS_LABEL: Record<PostItem['type'], Record<'OPEN' | 'RESOLVED' | 'CLOSE
 };
 
 const STATUS_VALUES = ['OPEN', 'RESOLVED', 'CLOSED'] as const;
+const ALL_TYPES = Object.keys(STATUS_LABEL) as PostItem['type'][];
 
 interface StatusOption {
   value: string;
@@ -92,14 +94,13 @@ interface StatusOption {
   status: (typeof STATUS_VALUES)[number];
 }
 
-// Builds one chip per distinct wording actually used by the post types present, so a mixed
+// Builds one chip per distinct wording used by the given types, so a mixed
 // page like "Bài post của tôi" (all types) shows e.g. "Đang tìm" and "Còn hàng" as separate,
 // independently selectable chips instead of one joined chip. Types that share identical
 // wording for a status (e.g. every type's CLOSED says "Đã đóng tin") collapse into a single
-// chip whose value covers all of them.
-function buildStatusOptions(posts: PostItem[]): StatusOption[] {
-  const typesPresent = Array.from(new Set(posts.map((p) => p.type)));
-  const types = typesPresent.length > 0 ? typesPresent : (Object.keys(STATUS_LABEL) as PostItem['type'][]);
+// chip whose value covers all of them. Driven by the fixed `type`/`authorId` prop rather than
+// fetched posts, so the chip set stays stable as the (now server-paginated) results change.
+function buildStatusOptions(types: PostItem['type'][]): StatusOption[] {
   return STATUS_VALUES.flatMap((status) => {
     const combosByLabel = new Map<string, string[]>();
     for (const type of types) {
@@ -146,19 +147,53 @@ function FilterChipGroup({
   );
 }
 
+function buildQuery(params: {
+  type?: PostItem['type'];
+  authorId?: string;
+  statusFilter: string[];
+  speciesFilter: string[];
+  areaFilter: string[];
+  search: string;
+  page: number;
+  limit: number;
+}): string {
+  const qs = new URLSearchParams();
+  if (params.type) qs.set('type', params.type);
+  if (params.authorId) qs.set('authorId', params.authorId);
+  if (params.statusFilter.length > 0) qs.set('statusCombos', params.statusFilter.join(','));
+  if (params.speciesFilter.length > 0) qs.set('species', params.speciesFilter.join(','));
+  if (params.areaFilter.length > 0) qs.set('provinceCodes', params.areaFilter.join(','));
+  if (params.search) qs.set('search', params.search);
+  qs.set('page', String(params.page));
+  qs.set('limit', String(params.limit));
+  return qs.toString();
+}
+
 export default function PostList({
   title,
-  posts,
   emptyText,
   newPostType,
+  type,
+  authorId,
+  initialPosts,
+  initialTotal,
 }: {
   title: string;
-  posts: PostItem[];
   emptyText: string;
   newPostType: PostItem['type'];
+  // Fixed post type for the listing pages (lost-found/adoption/marketplace/trade).
+  type?: PostItem['type'];
+  // Used instead of `type` for "Bài post của tôi", which spans every type for one author.
+  authorId?: string;
+  // Server-fetched first page (default filters: status OPEN, page 1) so the page has
+  // content on first paint instead of flashing empty before the client fetch resolves.
+  initialPosts?: PostItem[];
+  initialTotal?: number;
 }) {
+  const typesForChips = useMemo(() => (type ? [type] : ALL_TYPES), [type]);
+
   const [statusFilter, setStatusFilter] = useState<string[]>(() =>
-    buildStatusOptions(posts)
+    buildStatusOptions(typesForChips)
       .filter((opt) => opt.status === 'OPEN')
       .map((opt) => opt.value),
   );
@@ -170,7 +205,14 @@ export default function PostList({
   const [view, setView] = useState<'list' | 'map'>('list');
   const [page, setPage] = useState(1);
 
-  const statusOptions = useMemo(() => buildStatusOptions(posts), [posts]);
+  const [posts, setPosts] = useState<PostItem[]>(initialPosts ?? []);
+  const [total, setTotal] = useState(initialTotal ?? 0);
+  const [mapPosts, setMapPosts] = useState<PostItem[]>([]);
+  // Whether this type/author has ANY post at all, ignoring filters — distinguishes
+  // "nothing posted yet" (emptyText) from "no results for the current filter".
+  const [overallTotal, setOverallTotal] = useState<number | null>(null);
+
+  const statusOptions = useMemo(() => buildStatusOptions(typesForChips), [typesForChips]);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim().toLowerCase()), SEARCH_DEBOUNCE_MS);
@@ -191,34 +233,87 @@ export default function PostList({
       });
   }, []);
 
-  const filteredPosts = useMemo(() => {
-    return posts
-      .filter((post) => {
-        if (statusFilter.length > 0) {
-          const postCombo = post.status ? `${post.type}:${post.status}` : null;
-          if (!postCombo || !statusFilter.some((v) => v.split(',').includes(postCombo))) return false;
-        }
-        if (!matchesSpeciesFilter(post, speciesFilter)) {
-          return false;
-        }
-        if (areaFilter.length > 0) {
-          if (post.provinceCode == null || !areaFilter.includes(String(post.provinceCode))) return false;
-        }
-        if (search && !`${post.title} ${post.address ?? ''}`.toLowerCase().includes(search)) {
-          return false;
-        }
-        return true;
-      })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [posts, statusFilter, speciesFilter, areaFilter, search]);
-
   useEffect(() => {
     setPage(1);
   }, [statusFilter, speciesFilter, areaFilter, search]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / PAGE_SIZE));
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const qs = buildQuery({ type, authorId, statusFilter, speciesFilter, areaFilter, search, page, limit: PAGE_SIZE });
+        const res: PostsResponse = await api.get(`/posts?${qs}`);
+        if (!cancelled) {
+          setPosts(res.data);
+          setTotal(res.total);
+        }
+      } catch {
+        // Transient fetch failure — keep showing the previous page
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [type, authorId, statusFilter, speciesFilter, areaFilter, search, page]);
+
+  useEffect(() => {
+    if (view !== 'map') return;
+    let cancelled = false;
+    async function loadMap() {
+      try {
+        const qs = buildQuery({
+          type,
+          authorId,
+          statusFilter,
+          speciesFilter,
+          areaFilter,
+          search,
+          page: 1,
+          limit: MAP_VIEW_LIMIT,
+        });
+        const res: PostsResponse = await api.get(`/posts?${qs}`);
+        if (!cancelled) setMapPosts(res.data);
+      } catch {
+        // Transient fetch failure — map just keeps showing its previous pins
+      }
+    }
+    loadMap();
+    return () => {
+      cancelled = true;
+    };
+  }, [view, type, authorId, statusFilter, speciesFilter, areaFilter, search]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOverallTotal() {
+      try {
+        const qs = buildQuery({
+          type,
+          authorId,
+          statusFilter: [],
+          speciesFilter: [],
+          areaFilter: [],
+          search: '',
+          page: 1,
+          limit: 1,
+        });
+        const res: PostsResponse = await api.get(`/posts?${qs}`);
+        if (!cancelled) setOverallTotal(res.total);
+      } catch {
+        // Transient fetch failure — fall back to treating this as "has posts" so
+        // the filter sidebar doesn't disappear on a flaky request.
+        if (!cancelled) setOverallTotal(1);
+      }
+    }
+    loadOverallTotal();
+    return () => {
+      cancelled = true;
+    };
+  }, [type, authorId]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedPosts = filteredPosts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const hasActiveFilters =
     statusFilter.length > 0 ||
@@ -242,7 +337,7 @@ export default function PostList({
         </Link>
       </div>
 
-      {posts.length === 0 ? (
+      {overallTotal === 0 ? (
         <p className={styles.empty}>{emptyText}</p>
       ) : (
         <div className={styles.body}>
@@ -304,27 +399,29 @@ export default function PostList({
             </div>
 
             {view === 'map' ? (
-              <PostsMapView posts={filteredPosts} />
-            ) : filteredPosts.length === 0 ? (
+              <PostsMapView posts={mapPosts} />
+            ) : total === 0 ? (
               <p className={styles.empty}>Không tìm thấy tin phù hợp với bộ lọc đã chọn.</p>
             ) : (
               <>
                 <div className={styles.listRows}>
-                  {pagedPosts.map((post) => (
+                  {posts.map((post) => (
                     <Link
                       key={post.id}
                       href={`/posts/${post.id}`}
                       className={`${styles.postRow} ${post.status && post.status !== 'OPEN' ? styles.postRowDimmed : ''}`}
                     >
                       {post.images && post.images.length > 0 ? (
-                        <img className={styles.thumb} src={toAssetUrl(post.images[0])} alt={post.title} />
+                        <img className={styles.thumb} src={toAssetUrl(post.images[0])} alt={post.title} loading="lazy" />
                       ) : (
-                        <img className={styles.thumb} src="/logo.jpg" alt={post.title} />
+                        <img className={styles.thumb} src="/logo.jpg" alt={post.title} loading="lazy" />
                       )}
                       <div className={styles.rowBody}>
                         <div className={styles.rowTop}>
                           <h3 className={styles.rowTitle}>{post.title}</h3>
-                          <span className={BADGE_CLASS[post.type]}>{BADGE_LABEL[post.type]}</span>
+                          <span className={`badge ${(post.status ?? 'OPEN') === 'OPEN' ? 'badge-status-open' : 'badge-status-done'}`}>
+                            {STATUS_LABEL[post.type][post.status ?? 'OPEN']}
+                          </span>
                         </div>
                         <div className={styles.rowMeta}>
                           {formatRelativeTime(post.createdAt)}

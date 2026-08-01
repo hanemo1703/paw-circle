@@ -3,15 +3,21 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { QueryUserDto } from './dto/query-user.dto';
 
 @Injectable()
 export class UsersService {
   constructor(@InjectRepository(User) private usersRepo: Repository<User>) {}
 
-  async findAll() {
-    return this.usersRepo.find({
+  async findAll(query: QueryUserDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 50;
+    const [data, total] = await this.usersRepo.findAndCount({
       select: ['id', 'name', 'email', 'role', 'isVerifiedOrg', 'avatarUrl', 'createdAt'],
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total };
   }
 
   // Full record for internal/owner use (e.g. update()'s return value) — never

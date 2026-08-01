@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Donation } from './donation.entity';
@@ -83,9 +84,11 @@ export class DonationCampaign {
   @Column({ nullable: true })
   pickupAddress?: string;
 
+  @Index()
   @Column({ type: 'enum', enum: CampaignStatus, default: CampaignStatus.ACTIVE })
   status: CampaignStatus;
 
+  @Index()
   @Column()
   creatorId: string;
 

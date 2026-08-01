@@ -18,17 +18,21 @@ interface Offset {
   y: number;
 }
 
+interface CropSession {
+  src: string;
+  size: { width: number; height: number };
+  minScale: number;
+  scale: number;
+  offset: Offset;
+}
+
 export default function AvatarUploader({ value, onChange, accessToken }: AvatarUploaderProps) {
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
   // Cropper state — only populated while a file is being cropped
-  const [cropSrc, setCropSrc] = useState<string | null>(null);
-  const [imgSize, setImgSize] = useState<{ width: number; height: number } | null>(null);
-  const [minScale, setMinScale] = useState(1);
-  const [scale, setScale] = useState(1);
-  const [offset, setOffset] = useState<Offset>({ x: 0, y: 0 });
+  const [crop, setCrop] = useState<CropSession | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -56,11 +60,7 @@ export default function AvatarUploader({ value, onChange, accessToken }: AvatarU
     probe.onload = () => {
       const size = { width: probe.naturalWidth, height: probe.naturalHeight };
       const cover = Math.max(VIEWPORT / size.width, VIEWPORT / size.height);
-      setImgSize(size);
-      setMinScale(cover);
-      setScale(cover);
-      setOffset({ x: 0, y: 0 });
-      setCropSrc(src);
+      setCrop({ src, size, minScale: cover, scale: cover, offset: { x: 0, y: 0 } });
     };
     probe.src = src;
   }
@@ -79,22 +79,22 @@ export default function AvatarUploader({ value, onChange, accessToken }: AvatarU
   }
 
   function closeCropper() {
-    if (cropSrc) URL.revokeObjectURL(cropSrc);
-    setCropSrc(null);
-    setImgSize(null);
+    if (crop) URL.revokeObjectURL(crop.src);
+    setCrop(null);
   }
 
   function handlePointerDown(e: React.PointerEvent) {
+    if (!crop) return;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    dragState.current = { startX: e.clientX, startY: e.clientY, origin: offset };
+    dragState.current = { startX: e.clientX, startY: e.clientY, origin: crop.offset };
   }
 
   function handlePointerMove(e: React.PointerEvent) {
-    if (!dragState.current || !imgSize) return;
+    if (!dragState.current || !crop) return;
     const dx = e.clientX - dragState.current.startX;
     const dy = e.clientY - dragState.current.startY;
     const next = { x: dragState.current.origin.x + dx, y: dragState.current.origin.y + dy };
-    setOffset(clampOffset(next, scale, imgSize));
+    setCrop((prev) => (prev ? { ...prev, offset: clampOffset(next, prev.scale, prev.size) } : prev));
   }
 
   function handlePointerUp() {
@@ -102,14 +102,15 @@ export default function AvatarUploader({ value, onChange, accessToken }: AvatarU
   }
 
   function handleZoomChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!imgSize) return;
+    if (!crop) return;
     const nextScale = Number(e.target.value);
-    setScale(nextScale);
-    setOffset((prev) => clampOffset(prev, nextScale, imgSize));
+    setCrop((prev) =>
+      prev ? { ...prev, scale: nextScale, offset: clampOffset(prev.offset, nextScale, prev.size) } : prev,
+    );
   }
 
   async function handleConfirm() {
-    if (!imgRef.current || !imgSize) return;
+    if (!imgRef.current || !crop) return;
     setUploading(true);
     setError(null);
     try {
@@ -120,9 +121,9 @@ export default function AvatarUploader({ value, onChange, accessToken }: AvatarU
       if (!ctx) throw new Error('Không thể xử lý ảnh.');
       const ratio = OUTPUT / VIEWPORT;
       ctx.translate(OUTPUT / 2, OUTPUT / 2);
-      ctx.translate(offset.x * ratio, offset.y * ratio);
-      ctx.scale(scale * ratio, scale * ratio);
-      ctx.drawImage(imgRef.current, -imgSize.width / 2, -imgSize.height / 2);
+      ctx.translate(crop.offset.x * ratio, crop.offset.y * ratio);
+      ctx.scale(crop.scale * ratio, crop.scale * ratio);
+      ctx.drawImage(imgRef.current, -crop.size.width / 2, -crop.size.height / 2);
 
       const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
       if (!blob) throw new Error('Không thể xử lý ảnh.');
@@ -163,7 +164,7 @@ export default function AvatarUploader({ value, onChange, accessToken }: AvatarU
       />
       {error && <p style={{ color: 'red', fontSize: 13 }}>{error}</p>}
 
-      {cropSrc && imgSize && (
+      {crop && (
         <div className={styles.overlay} onClick={closeCropper}>
           <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.panelTitle}>Chỉnh ảnh đại diện</h3>
@@ -176,23 +177,23 @@ export default function AvatarUploader({ value, onChange, accessToken }: AvatarU
             >
               <img
                 ref={imgRef}
-                src={cropSrc}
+                src={crop.src}
                 alt=""
                 draggable={false}
                 className={styles.cropImage}
                 style={{
-                  width: imgSize.width * scale,
-                  height: imgSize.height * scale,
-                  transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px)`,
+                  width: crop.size.width * crop.scale,
+                  height: crop.size.height * crop.scale,
+                  transform: `translate(-50%, -50%) translate(${crop.offset.x}px, ${crop.offset.y}px)`,
                 }}
               />
             </div>
             <input
               type="range"
-              min={minScale}
-              max={minScale * MAX_ZOOM_MULTIPLIER}
-              step={(minScale * MAX_ZOOM_MULTIPLIER - minScale) / 100 || 0.01}
-              value={scale}
+              min={crop.minScale}
+              max={crop.minScale * MAX_ZOOM_MULTIPLIER}
+              step={(crop.minScale * MAX_ZOOM_MULTIPLIER - crop.minScale) / 100 || 0.01}
+              value={crop.scale}
               onChange={handleZoomChange}
               className={styles.zoomSlider}
             />

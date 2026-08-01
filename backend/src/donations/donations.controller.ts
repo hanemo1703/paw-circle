@@ -9,6 +9,7 @@ import {
   ParseFilePipe,
   Patch,
   Post as HttpPost,
+  Query,
   Req,
   UploadedFiles,
   UseGuards,
@@ -19,6 +20,8 @@ import { DonationsService } from './donations.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { CreateDonationDto } from './dto/create-donation.dto';
+import { QueryCampaignDto } from './dto/query-campaign.dto';
+import { QueryDonationsDto } from './dto/query-donations.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { MAX_CAMPAIGN_IMAGES, MAX_IMAGE_SIZE_BYTES, campaignImagesStorage } from './images-upload.config';
 import { VN_BANKS } from './vn-banks';
@@ -60,13 +63,18 @@ export class DonationsController {
   }
 
   @Get('campaigns')
-  findAllCampaigns() {
-    return this.donationsService.findAllCampaigns();
+  findAllCampaigns(@Query() query: QueryCampaignDto) {
+    return this.donationsService.findAllCampaigns(query);
   }
 
   @Get('campaigns/:id')
   findCampaign(@Param('id') id: string) {
     return this.donationsService.findCampaign(id);
+  }
+
+  @Get('campaigns/:id/donations')
+  findCampaignDonations(@Param('id') id: string, @Query() query: QueryDonationsDto) {
+    return this.donationsService.findCampaignDonations(id, query);
   }
 
   @UseGuards(JwtAuthGuard)

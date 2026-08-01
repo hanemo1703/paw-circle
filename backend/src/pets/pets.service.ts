@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Pet } from './entities/pet.entity';
 import { CreatePetDto } from './dto/create-pet.dto';
+import { QueryPetDto } from './dto/query-pet.dto';
 
 @Injectable()
 export class PetsService {
@@ -13,8 +14,15 @@ export class PetsService {
     return this.petsRepo.save(pet);
   }
 
-  findAllByOwner(ownerId: string) {
-    return this.petsRepo.find({ where: { ownerId } });
+  async findAllByOwner(ownerId: string, query: QueryPetDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 100;
+    const [data, total] = await this.petsRepo.findAndCount({
+      where: { ownerId },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { data, total };
   }
 
   async findOne(id: string) {

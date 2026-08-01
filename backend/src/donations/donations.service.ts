@@ -6,6 +6,8 @@ import { Donation } from './entities/donation.entity';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { CreateDonationDto } from './dto/create-donation.dto';
+import { QueryCampaignDto } from './dto/query-campaign.dto';
+import { QueryDonationsDto } from './dto/query-donations.dto';
 import { User } from '../users/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/entities/notification.entity';
@@ -56,14 +58,59 @@ export class DonationsService {
     return this.campaignsRepo.save(campaign);
   }
 
-  findAllCampaigns() {
-    return this.campaignsRepo.find({ order: { createdAt: 'DESC' } });
+  async findAllCampaigns(query: QueryCampaignDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 6;
+
+    const qb = this.campaignsRepo.createQueryBuilder('campaign');
+
+    if (query.status) {
+      const statuses = query.status
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (statuses.length > 0) {
+        qb.andWhere('campaign.status IN (:...statuses)', { statuses });
+      }
+    }
+
+    if (query.category) {
+      const categories = query.category
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean);
+      if (categories.length > 0) {
+        qb.andWhere('campaign.category IN (:...categories)', { categories });
+      }
+    }
+
+    if (query.search) {
+      qb.andWhere('campaign.title ILIKE :search', { search: `%${query.search}%` });
+    }
+
+    if (query.sort === 'deadline') {
+      // NULLS LAST so campaigns without a deadline sink to the bottom instead of
+      // sorting first (Postgres defaults NULLS to sort last on ASC, but be explicit).
+      qb.orderBy('campaign.deadline', 'ASC', 'NULLS LAST');
+    } else if (query.sort === 'progress') {
+      qb.addSelect(
+        'CASE WHEN campaign.targetAmount IS NULL OR campaign.targetAmount = 0 THEN NULL ELSE campaign.currentAmount / campaign.targetAmount END',
+        'progress',
+      ).orderBy('progress', 'DESC', 'NULLS LAST');
+    } else {
+      qb.orderBy('campaign.createdAt', 'DESC');
+    }
+
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total };
   }
 
   async findCampaign(id: string) {
     const campaign = await this.campaignsRepo.findOne({
       where: { id },
-      relations: ['donations', 'donations.donor', 'creator'],
+      relations: ['creator'],
     });
     if (!campaign) {
       throw new NotFoundException('Không tìm thấy chiến dịch');
@@ -77,26 +124,42 @@ export class DonationsService {
       delete (campaign.creator as any).showEmailPublicly;
     }
 
-    // Public donor feed only exposes what the campaign page actually shows (name + time).
-    // Amount and the transfer proof screenshot stay private — the screenshot in particular
-    // can contain the donor's own bank statement details.
-    campaign.donations = (campaign.donations ?? [])
-      .map((donation) => ({
-        id: donation.id,
-        anonymous: donation.anonymous,
-        message: donation.message,
-        createdAt: donation.createdAt,
-        donor: donation.anonymous
-          ? undefined
-          : donation.donor && { id: donation.donor.id, name: donation.donor.name, avatarUrl: donation.donor.avatarUrl },
-      }))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) as any;
-
     (campaign as any).creatorCampaignCount = await this.campaignsRepo.count({
       where: { creatorId: campaign.creatorId },
     });
 
     return campaign;
+  }
+
+  // Paginated separately from findCampaign — a heavily-donated campaign shouldn't pull
+  // every donation + donor row into memory just to show a page of the donor feed.
+  async findCampaignDonations(campaignId: string, query: QueryDonationsDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 15;
+
+    const [donations, total] = await this.donationsRepo
+      .createQueryBuilder('donation')
+      .leftJoinAndSelect('donation.donor', 'donor')
+      .where('donation.campaignId = :campaignId', { campaignId })
+      .orderBy('donation.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    // Public donor feed only exposes what the campaign page actually shows (name + time).
+    // Amount and the transfer proof screenshot stay private — the screenshot in particular
+    // can contain the donor's own bank statement details.
+    const data = donations.map((donation) => ({
+      id: donation.id,
+      anonymous: donation.anonymous,
+      message: donation.message,
+      createdAt: donation.createdAt,
+      donor: donation.anonymous
+        ? undefined
+        : donation.donor && { id: donation.donor.id, name: donation.donor.name, avatarUrl: donation.donor.avatarUrl },
+    }));
+
+    return { data, total };
   }
 
   async updateCampaign(id: string, userId: string, dto: UpdateCampaignDto) {
