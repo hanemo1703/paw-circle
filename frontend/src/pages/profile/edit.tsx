@@ -17,13 +17,18 @@ export default function EditProfilePage() {
   const [showEmailPublicly, setShowEmailPublicly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const { showToast, toastNode } = useToast();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    setCheckingAuth(false);
+  }, []);
+
+  useEffect(() => {
+    if (!checkingAuth && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [checkingAuth, isAuthenticated, router]);
 
   useEffect(() => {
     if (user) {

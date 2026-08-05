@@ -88,7 +88,7 @@ export class MessagesService {
       .leftJoin('message.receiver', 'receiver')
       .select(MESSAGE_SELECT)
       .where(
-        '(message.senderId = :userId AND message.receiverId = :otherUserId) OR (message.senderId = :otherUserId AND message.receiverId = :userId)',
+        '((message.senderId = :userId AND message.receiverId = :otherUserId) OR (message.senderId = :otherUserId AND message.receiverId = :userId))',
         { userId, otherUserId },
       );
 

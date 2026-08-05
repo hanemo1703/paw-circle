@@ -36,6 +36,7 @@ export default function MessageThreadPage() {
   const [sending, setSending] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const { showToast, toastNode } = useToast();
   const listRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
@@ -51,10 +52,14 @@ export default function MessageThreadPage() {
   }
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    setCheckingAuth(false);
+  }, []);
+
+  useEffect(() => {
+    if (!checkingAuth && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [checkingAuth, isAuthenticated, router]);
 
   useEffect(() => {
     const { prefill } = router.query;

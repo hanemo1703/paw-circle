@@ -78,9 +78,9 @@ const SPECIES_LABEL: Record<SpeciesOption, string> = {
 const SPECIES_DROPDOWN_OPTIONS = SPECIES_OPTIONS.map((s) => ({ value: s, label: SPECIES_LABEL[s] }));
 
 function toSpeciesOption(value?: string): { species: SpeciesOption; speciesOther: string } {
-  if (value === SPECIES_LABEL.CAT) return { species: 'CAT', speciesOther: '' };
+  if (!value || value === SPECIES_LABEL.CAT) return { species: 'CAT', speciesOther: '' };
   if (value === SPECIES_LABEL.DOG) return { species: 'DOG', speciesOther: '' };
-  return { species: 'OTHER', speciesOther: value ?? '' };
+  return { species: 'OTHER', speciesOther: value };
 }
 
 type GenderOption = 'MALE' | 'FEMALE' | 'UNKNOWN';

@@ -2,6 +2,9 @@ import { test, expect } from '../fixtures';
 import { uniqueSuffix } from '../helpers/random';
 import { mockRegionApi } from '../helpers/mockRegionApi';
 import { PostType } from '../helpers/api';
+import { TEST_PNG_BUFFER } from '../helpers/testImage';
+
+const TEST_IMAGE_FILE = { name: 'e2e-post-image.png', mimeType: 'image/png', buffer: TEST_PNG_BUFFER };
 
 interface TypeCase {
   type: PostType;
@@ -56,3 +59,25 @@ for (const { type, listPath } of TYPE_CASES) {
     await expect(authedPage.getByText(title)).toBeVisible();
   });
 }
+
+test('attaching an image on the create form uploads it and shows on the post detail page', async ({ authedPage }) => {
+  const title = `E2E create LOST with image ${uniqueSuffix()}`;
+
+  await mockRegionApi(authedPage);
+  await authedPage.goto('/posts/new?type=LOST');
+
+  await authedPage.getByLabel('Tiêu đề').fill(title);
+  await authedPage.getByLabel(/^Mô tả\*?$/).fill('Mô tả tự động cho tin có ảnh.');
+  await authedPage.locator('#images').setInputFiles(TEST_IMAGE_FILE);
+  await expect(authedPage.locator('[class*="imageTile"]')).toHaveCount(1);
+
+  await selectRegion(authedPage);
+  await authedPage.getByRole('button', { name: 'Đăng tin' }).click();
+
+  await expect(authedPage.getByRole('status')).toHaveText('Đăng tin thành công!');
+  await authedPage.getByText(title).click();
+
+  const mainImage = authedPage.getByRole('img', { name: title });
+  await expect(mainImage).toBeVisible();
+  await expect(mainImage).not.toHaveAttribute('src', '/logo.jpg');
+});

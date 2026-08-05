@@ -55,6 +55,6 @@ export class Pet {
   @OneToMany(() => Post, (post) => post.pet)
   posts: Post[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }
